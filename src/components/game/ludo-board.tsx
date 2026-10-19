@@ -162,24 +162,39 @@ function CellView({ row, col }: { row: number; col: number }) {
     case 'center':
       return (
         <div className="relative aspect-square overflow-hidden border border-slate-800 bg-white dark:border-slate-200/40 dark:bg-slate-900">
+          {/* 4 colored triangles meeting at center. Using slightly oversized
+              polygons (extending 0.5% past center) to avoid sub-pixel gaps
+              between triangles that cause the "glitchy" look. */}
           <div
             className="absolute inset-0"
-            style={{ clipPath: 'polygon(0 0, 100% 0, 50% 50%)', background: 'var(--c-yellow)' }}
+            style={{
+              clipPath: 'polygon(0 0, 100% 0, 50.5% 50.5%)',
+              background: 'var(--c-yellow)',
+            }}
             aria-hidden
           />
           <div
             className="absolute inset-0"
-            style={{ clipPath: 'polygon(0 0, 0 100%, 50% 50%)', background: 'var(--c-green)' }}
+            style={{
+              clipPath: 'polygon(0 0, 0 100%, 50.5% 50.5%)',
+              background: 'var(--c-green)',
+            }}
             aria-hidden
           />
           <div
             className="absolute inset-0"
-            style={{ clipPath: 'polygon(0 100%, 100% 100%, 50% 50%)', background: 'var(--c-red)' }}
+            style={{
+              clipPath: 'polygon(0 100%, 100% 100%, 49.5% 49.5%)',
+              background: 'var(--c-red)',
+            }}
             aria-hidden
           />
           <div
             className="absolute inset-0"
-            style={{ clipPath: 'polygon(100% 0, 100% 100%, 50% 50%)', background: 'var(--c-blue)' }}
+            style={{
+              clipPath: 'polygon(100% 0, 100% 100%, 49.5% 49.5%)',
+              background: 'var(--c-blue)',
+            }}
             aria-hidden
           />
           <div className="absolute inset-0 grid place-items-center" aria-hidden>
@@ -304,8 +319,6 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
   const canMove = isMyTurn && state.phase === 'move'
   const showTurnGlow = isMyTurn && (state.phase === 'move' || state.phase === 'roll')
 
-  // Click handler for a destination cell. If only one move targets it,
-  // execute it. If two (forward + backward to the same cell), prefer forward.
   const handleCellClick = (moves: LegalMove[]) => {
     if (!canMove || moves.length === 0) return
     const fwd = moves.find((m) => m.direction === 'forward')
@@ -317,7 +330,6 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
     <div
       className={cn(
         'relative mx-auto aspect-square w-full max-w-[min(95vw,600px)] rounded-xl border-2 border-slate-800 bg-white p-1 shadow-2xl select-none transition-shadow dark:border-slate-200/30 dark:bg-slate-900',
-        // Subtle steady glow on the player's turn — no aggressive pulsing.
         showTurnGlow && 'shadow-emerald-400/30 ring-2 ring-emerald-400/40',
       )}
       role="grid"
@@ -396,7 +408,6 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
                 tokenId={token.index}
                 isLegal={isMovable}
                 isCurrent={isCurrentSeatToken}
-                // No onClick — tokens are not clickable. Destination cells are.
               />
             </div>
           </motion.div>

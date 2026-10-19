@@ -251,9 +251,11 @@ export function GameRoom({
 
           {/* Board + floating base panels for purple/orange (5-6 players).
               Panels align flush with the board height so they look like
-              board extensions. */}
+              board extensions. Only show if there's actually a player in
+              seat 4 (purple) or seat 5 (orange). */}
           <div className="flex w-full items-stretch justify-center gap-1.5">
-            {gameState.maxPlayers >= 5 && (
+            {/* Purple floating base panel (seat 4) — only when a player is actually in seat 4 */}
+            {gameState.maxPlayers >= 5 && players.some((p) => p.seat === 4) && (
               <div className="aspect-square w-[18%] max-w-[110px] shrink-0">
                 <FloatingBasePanel
                   color="purple"
@@ -265,6 +267,7 @@ export function GameRoom({
               </div>
             )}
 
+            {/* Main board */}
             <div className="aspect-square w-full max-w-[min(95vw,600px)] flex-1">
               <LudoBoard
                 state={gameState}
@@ -274,7 +277,8 @@ export function GameRoom({
               />
             </div>
 
-            {gameState.maxPlayers >= 6 && (
+            {/* Orange floating base panel (seat 5) — only when a player is actually in seat 5 */}
+            {gameState.maxPlayers >= 6 && players.some((p) => p.seat === 5) && (
               <div className="aspect-square w-[18%] max-w-[110px] shrink-0">
                 <FloatingBasePanel
                   color="orange"
