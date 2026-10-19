@@ -15,11 +15,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { randomBotName } from '@/lib/ludo/bot'
-import {
-  generateUniqueRoomCode,
-  toLobbyGameDTO,
-  type GameMode,
-} from '@/lib/lobby'
+import { generateUniqueRoomCode, toLobbyGameDTO, type GameMode } from '@/lib/lobby'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,7 +73,12 @@ export async function POST(req: Request) {
   // Create the Game row + GamePlayer rows in a single transaction.
   const game = await db.$transaction(async (tx) => {
     // Build GamePlayer rows: seat 0 = host (human), seats 1..botCount = bots.
-    const playerRows: { seat: number; isBot: boolean; userId: string | null; botName: string | null }[] = [
+    const playerRows: {
+      seat: number
+      isBot: boolean
+      userId: string | null
+      botName: string | null
+    }[] = [
       {
         seat: 0,
         isBot: false,
@@ -117,9 +118,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json(
     {
-      game: toLobbyGameDTO(
-        game as unknown as Parameters<typeof toLobbyGameDTO>[0],
-      ),
+      game: toLobbyGameDTO(game as unknown as Parameters<typeof toLobbyGameDTO>[0]),
       code: game.code,
     },
     { status: 201 },

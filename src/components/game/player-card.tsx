@@ -49,7 +49,11 @@ export function PlayerCard({
       className={cn(
         'relative flex flex-col gap-1 rounded-lg border p-2 transition-all',
         isCurrent
-          ? cn('border-2 bg-card shadow-md', COLOR_BORDER[color], 'shadow-[0_0_0_2px_rgba(245,158,11,0.35)]')
+          ? cn(
+              'bg-card border-2 shadow-md',
+              COLOR_BORDER[color],
+              'shadow-[0_0_0_2px_rgba(245,158,11,0.35)]',
+            )
           : 'border-border bg-card/60',
         compact && 'p-1.5',
       )}
@@ -57,10 +61,15 @@ export function PlayerCard({
       {/* Top row: avatar + name + badges */}
       <div className="flex items-center gap-2">
         {/* color strip */}
-        <div className={cn('absolute inset-y-0 left-0 w-1 rounded-l-lg', COLOR_BG[color])} aria-hidden />
+        <div
+          className={cn('absolute inset-y-0 left-0 w-1 rounded-l-lg', COLOR_BG[color])}
+          aria-hidden
+        />
 
         <Avatar className={cn('size-9 shrink-0 ring-2', COLOR_BORDER[color])}>
-          <AvatarFallback className={cn(COLOR_BG_SOFT[color], COLOR_TEXT[color], 'text-sm font-bold')}>
+          <AvatarFallback
+            className={cn(COLOR_BG_SOFT[color], COLOR_TEXT[color], 'text-sm font-bold')}
+          >
             {initial}
           </AvatarFallback>
         </Avatar>
@@ -71,9 +80,7 @@ export function PlayerCard({
               className={cn('size-2 shrink-0 rounded-full', COLOR_DOT[color])}
               aria-hidden
             />
-            <p className="truncate text-sm font-semibold leading-tight">
-              {player.name}
-            </p>
+            <p className="truncate text-sm leading-tight font-semibold">{player.name}</p>
             {player.isBot && (
               <Badge variant="secondary" className="px-1 py-0 text-[10px]">
                 <Bot className="size-2.5" /> BOT
@@ -94,7 +101,7 @@ export function PlayerCard({
             )}
           </div>
 
-          <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+          <div className="text-muted-foreground mt-0.5 flex items-center gap-1 text-[10px]">
             {player.rank !== undefined ? (
               <span className="inline-flex items-center gap-0.5 font-medium text-amber-600">
                 <Crown className="size-3" /> Rank #{player.rank}
@@ -107,9 +114,7 @@ export function PlayerCard({
       </div>
 
       {/* Off-board base + home-column strip for purple/orange players only */}
-      {showOffBoardStrip && tokens && (
-        <OffBoardStrip color={color} tokens={tokens} />
-      )}
+      {showOffBoardStrip && tokens && <OffBoardStrip color={color} tokens={tokens} />}
     </div>
   )
 }
@@ -119,28 +124,22 @@ export function PlayerCard({
 function OffBoardStrip({ color, tokens }: { color: Color; tokens: Token[] }) {
   // 4 base docks (token.index 0..3 when pos === -1).
   // 6 home-column cells (pos 100..105); 105 = finish (crown).
-  const baseToken = (i: number) =>
-    tokens.find((t) => t.index === i && isInBase(t.pos))
-  const homeToken = (pos: number) =>
-    tokens.find((t) => t.pos === pos)
+  const baseToken = (i: number) => tokens.find((t) => t.index === i && isInBase(t.pos))
+  const homeToken = (pos: number) => tokens.find((t) => t.pos === pos)
   // Finished tokens (pos 200) sit in the finish cell.
   const finishedCount = tokens.filter((t) => isFinished(t.pos)).length
 
   return (
-    <div className="mt-1 flex flex-col gap-1.5 rounded-md bg-muted/40 p-1.5">
+    <div className="bg-muted/40 mt-1 flex flex-col gap-1.5 rounded-md p-1.5">
       {/* Base row */}
       <div className="flex items-center gap-1">
         <span
-          className="w-8 shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground"
+          className="text-muted-foreground w-8 shrink-0 text-[9px] font-semibold tracking-wide uppercase"
           aria-hidden
         >
           Base
         </span>
-        <div
-          className="flex gap-0.5"
-          role="group"
-          aria-label={`${color} base docks`}
-        >
+        <div className="flex gap-0.5" role="group" aria-label={`${color} base docks`}>
           {[0, 1, 2, 3].map((i) => {
             const t = baseToken(i)
             return (
@@ -166,16 +165,12 @@ function OffBoardStrip({ color, tokens }: { color: Color; tokens: Token[] }) {
       {/* Home row */}
       <div className="flex items-center gap-1">
         <span
-          className="w-8 shrink-0 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground"
+          className="text-muted-foreground w-8 shrink-0 text-[9px] font-semibold tracking-wide uppercase"
           aria-hidden
         >
           Home
         </span>
-        <div
-          className="flex gap-0.5"
-          role="group"
-          aria-label={`${color} home column`}
-        >
+        <div className="flex gap-0.5" role="group" aria-label={`${color} home column`}>
           {[100, 101, 102, 103, 104, 105].map((pos, i) => {
             const isFinish = pos === 105
             const t = homeToken(pos)

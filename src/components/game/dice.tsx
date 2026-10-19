@@ -45,17 +45,18 @@ export function Dice({
   const DieIcon = value ? DICE_ICONS[value] : Dices
   const color = currentSeat !== undefined ? colorOf(currentSeat) : 'red'
 
-  const turnLabel = phase === 'gameover'
-    ? 'Game Over'
-    : isMyTurn
-      ? phase === 'roll'
-        ? 'Your turn — roll the dice'
-        : phase === 'move'
-          ? 'Your turn — make a move'
+  const turnLabel =
+    phase === 'gameover'
+      ? 'Game Over'
+      : isMyTurn
+        ? phase === 'roll'
+          ? 'Your turn — roll the dice'
+          : phase === 'move'
+            ? 'Your turn — make a move'
+            : 'Waiting…'
+        : playerName
+          ? `${playerName}'s turn`
           : 'Waiting…'
-      : playerName
-        ? `${playerName}'s turn`
-        : 'Waiting…'
 
   // The `spin` flag is purely derived from props: spin while the parent says
   // we're rolling OR right after a new value arrives (detected via key).
@@ -67,14 +68,16 @@ export function Dice({
     <section
       aria-label="Dice"
       className={cn(
-        'flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow',
-        isMyTurn && phase !== 'gameover' && 'shadow-[0_0_0_2px_rgba(16,185,129,0.45),0_8px_24px_-8px_rgba(16,185,129,0.45)]',
+        'border-border bg-card flex flex-col items-center gap-3 rounded-xl border p-4 shadow-sm transition-shadow',
+        isMyTurn &&
+          phase !== 'gameover' &&
+          'shadow-[0_0_0_2px_rgba(16,185,129,0.45),0_8px_24px_-8px_rgba(16,185,129,0.45)]',
       )}
     >
       <div className="flex items-center justify-center">
         <AnimatePresence mode="popLayout">
           <motion.div
-            key={spin ? 'spinning' : value ?? 'idle'}
+            key={spin ? 'spinning' : (value ?? 'idle')}
             initial={{ rotate: 0, scale: 0.85 }}
             animate={spin ? { rotate: 720, scale: 1 } : { rotate: 360, scale: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
@@ -113,4 +116,3 @@ export function Dice({
 }
 
 export default Dice
-

@@ -1,7 +1,7 @@
-import type { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { db } from "@/lib/db";
+import type { NextAuthOptions } from 'next-auth'
+import CredentialsProvider from 'next-auth/providers/credentials'
+import bcrypt from 'bcryptjs'
+import { db } from '@/lib/db'
 
 /**
  * NextAuth options for the Ludo Stars app.
@@ -14,57 +14,57 @@ import { db } from "@/lib/db";
  */
 export const authOptions: NextAuthOptions = {
   session: {
-    strategy: "jwt",
+    strategy: 'jwt',
   },
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
-      name: "Credentials",
+      name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        const email = credentials?.email?.trim().toLowerCase();
-        const password = credentials?.password ?? "";
-        if (!email || !password) return null;
+        const email = credentials?.email?.trim().toLowerCase()
+        const password = credentials?.password ?? ''
+        if (!email || !password) return null
 
         const user = await db.user.findUnique({
           where: { email },
-        });
-        if (!user) return null;
+        })
+        if (!user) return null
 
-        const ok = await bcrypt.compare(password, user.passwordHash);
-        if (!ok) return null;
+        const ok = await bcrypt.compare(password, user.passwordHash)
+        if (!ok) return null
 
         return {
           id: user.id,
           email: user.email,
           username: user.username,
           name: user.name ?? user.username,
-        };
+        }
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = (user as { id: string }).id;
-        token.username = (user as { username: string }).username;
+        token.id = (user as { id: string }).id
+        token.username = (user as { username: string }).username
       }
-      return token;
+      return token
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.username = token.username as string;
+        session.user.id = token.id as string
+        session.user.username = token.username as string
       }
-      return session;
+      return session
     },
   },
   pages: {
-    signIn: "/",
+    signIn: '/',
   },
-};
+}
 
-export default authOptions;
+export default authOptions

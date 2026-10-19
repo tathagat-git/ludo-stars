@@ -34,10 +34,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from '@/components/ui/radio-group'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -133,8 +130,7 @@ export function CreateGameDialog({ trigger }: CreateGameDialogProps) {
             Create a new room
           </DialogTitle>
           <DialogDescription>
-            Pick a mode and seat configuration. Bots fill empty seats
-            automatically.
+            Pick a mode and seat configuration. Bots fill empty seats automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -157,10 +153,9 @@ export function CreateGameDialog({ trigger }: CreateGameDialogProps) {
                   <p className="text-xs leading-relaxed">
                     <strong>Classic</strong>: tokens only move forward.
                     <br />
-                    <strong>Twist</strong>: tokens on the track may also move
-                    backward by the dice value (bounded by their own start
-                    square). Backward landings can capture opponents on
-                    non-safe squares.
+                    <strong>Twist</strong>: tokens on the track may also move backward by
+                    the dice value (bounded by their own start square). Backward landings
+                    can capture opponents on non-safe squares.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -173,24 +168,26 @@ export function CreateGameDialog({ trigger }: CreateGameDialogProps) {
           >
             <label
               htmlFor="mode-classic"
-              className="flex cursor-pointer items-start gap-3 rounded-md border border-input p-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+              className="border-input has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-start gap-3 rounded-md border p-3"
             >
               <RadioGroupItem value="classic" id="mode-classic" className="mt-0.5" />
               <div className="space-y-0.5">
                 <div className="text-sm font-medium">Classic</div>
-                <div className="text-xs text-muted-foreground">Forward only</div>
+                <div className="text-muted-foreground text-xs">Forward only</div>
               </div>
             </label>
             <label
               htmlFor="mode-twist"
-              className="flex cursor-pointer items-start gap-3 rounded-md border border-input p-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+              className="border-input has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-start gap-3 rounded-md border p-3"
             >
               <RadioGroupItem value="twist" id="mode-twist" className="mt-0.5" />
               <div className="space-y-0.5">
-                <div className="text-sm font-medium flex items-center gap-1">
-                  Twist <Sparkles className="size-3 text-primary" />
+                <div className="flex items-center gap-1 text-sm font-medium">
+                  Twist <Sparkles className="text-primary size-3" />
                 </div>
-                <div className="text-xs text-muted-foreground">Backward moves allowed</div>
+                <div className="text-muted-foreground text-xs">
+                  Backward moves allowed
+                </div>
               </div>
             </label>
           </RadioGroup>
@@ -219,10 +216,7 @@ export function CreateGameDialog({ trigger }: CreateGameDialogProps) {
         {/* Bots */}
         <div className="grid gap-2">
           <Label htmlFor="bot-count">Bots</Label>
-          <Select
-            value={String(botCount)}
-            onValueChange={(v) => setBotCount(Number(v))}
-          >
+          <Select value={String(botCount)} onValueChange={(v) => setBotCount(Number(v))}>
             <SelectTrigger id="bot-count" className="w-full">
               <SelectValue placeholder="Bots" />
             </SelectTrigger>
@@ -234,7 +228,7 @@ export function CreateGameDialog({ trigger }: CreateGameDialogProps) {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Fills empty seats with AI opponents.
           </p>
         </div>

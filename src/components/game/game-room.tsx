@@ -12,8 +12,10 @@ import {
   Play,
   CheckCircle2,
   Circle,
+  WifiOff,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,7 +38,14 @@ interface GameRoomProps {
   onExit: () => void
 }
 
-export function GameRoom({ code, userId, username, mode, maxPlayers, onExit }: GameRoomProps) {
+export function GameRoom({
+  code,
+  userId,
+  username,
+  mode,
+  maxPlayers,
+  onExit,
+}: GameRoomProps) {
   const {
     connected,
     room,
@@ -66,6 +75,13 @@ export function GameRoom({ code, userId, username, mode, maxPlayers, onExit }: G
     : gameState?.phase === 'gameover'
       ? 'finished'
       : 'playing'
+
+  // ── Surface websocket / room errors via toast (visible in BOTH lobby and
+  // in-game views). The lobby view also shows a banner; in-game we rely on
+  // the toast so we don't obscure the board.
+  useEffect(() => {
+    if (error) toast.error(error)
+  }, [error])
 
   const handleCopyCode = async () => {
     try {
@@ -152,28 +168,72 @@ export function GameRoom({ code, userId, username, mode, maxPlayers, onExit }: G
   const isGameOver = gameState.phase === 'gameover'
 
   return (
-    <main className="flex min-h-screen flex-col bg-gradient-to-br from-background via-background to-muted/30">
+    <main className="from-background via-background to-muted/30 flex min-h-screen flex-col bg-gradient-to-br">
       {/* Header */}
-      <header className="flex items-center justify-between gap-2 border-b bg-card/80 px-4 py-2 backdrop-blur">
+      <header className="bg-card/80 flex items-center justify-between gap-2 border-b px-4 py-2 backdrop-blur">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="font-mono">
             ROOM {code}
           </Badge>
-          <span className={cn('text-xs', connected ? 'text-emerald-600' : 'text-muted-foreground')}>
-            {connected ? '● Connected' : '○ Reconnecting…'}
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 text-xs',
+              connected ? 'text-emerald-600' : 'text-amber-600 dark:text-amber-400',
+            )}
+            aria-live="polite"
+          >
+            {connected ? (
+              <>
+                <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+                <span className="hidden sm:inline">Connected</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="size-3.5 animate-pulse" aria-hidden />
+                <span>Reconnecting…</span>
+              </>
+            )}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="min-h-[40px]" onClick={handleCopyCode}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-[40px]"
+            onClick={handleCopyCode}
+            aria-label={copied ? 'Room code copied' : 'Copy room code'}
+          >
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
             <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy code'}</span>
           </Button>
-          <Button variant="destructive" size="sm" className="min-h-[40px]" onClick={handleLeave}>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="min-h-[40px]"
+            onClick={handleLeave}
+            aria-label="Leave room"
+          >
             <LogOut className="size-4" />
             <span className="hidden sm:inline">Leave</span>
           </Button>
         </div>
       </header>
+
+      {/* Reconnecting banner — visible only when the socket drops mid-game */}
+      <AnimatePresence>
+        {!connected && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="flex items-center justify-center gap-2 overflow-hidden border-b bg-amber-500/10 px-4 py-1.5 text-center text-xs font-medium text-amber-700 dark:text-amber-300"
+            role="status"
+          >
+            <WifiOff className="size-3.5 animate-pulse" aria-hidden />
+            Connection lost — trying to reconnect…
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Body */}
       <div className="flex flex-1 flex-col gap-4 p-3 lg:flex-row lg:p-4">
@@ -290,13 +350,18 @@ function LobbyView(props: LobbyViewProps) {
   const mySeatInfo = seats.find((s) => s.userId === myUserId)
 
   return (
-    <main className="flex min-h-screen flex-col bg-gradient-to-br from-background via-background to-muted/30">
-      <header className="flex items-center justify-between border-b bg-card/80 px-4 py-3 backdrop-blur">
+    <main className="from-background via-background to-muted/30 flex min-h-screen flex-col bg-gradient-to-br">
+      <header className="bg-card/80 flex items-center justify-between border-b px-4 py-3 backdrop-blur">
         <div>
           <h1 className="text-lg font-bold">Ludo Stars — Lobby</h1>
-          <p className="text-xs text-muted-foreground">Waiting for players…</p>
+          <p className="text-muted-foreground text-xs">Waiting for players…</p>
         </div>
-        <Button variant="destructive" size="sm" className="min-h-[40px]" onClick={onLeave}>
+        <Button
+          variant="destructive"
+          size="sm"
+          className="min-h-[40px]"
+          onClick={onLeave}
+        >
           <LogOut className="size-4" /> Leave
         </Button>
       </header>
@@ -309,22 +374,28 @@ function LobbyView(props: LobbyViewProps) {
               <span className="flex items-center gap-2">
                 <Users className="size-5" /> Room Code
               </span>
-              <Button variant="outline" size="sm" className="min-h-[40px]" onClick={onCopy}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-[40px]"
+                onClick={onCopy}
+              >
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-4">
-            <div className="rounded-lg bg-muted/50 p-3 text-center">
+            <div className="bg-muted/50 rounded-lg p-3 text-center">
               <p className="font-mono text-3xl font-bold tracking-widest">{code}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {connected ? 'Connected' : 'Connecting…'} · {filledSeats}/{maxPlayers} players
+              <p className="text-muted-foreground mt-1 text-xs">
+                {connected ? 'Connected' : 'Connecting…'} · {filledSeats}/{maxPlayers}{' '}
+                players
               </p>
             </div>
 
             {error && (
-              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p className="bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm">
                 {error}
               </p>
             )}
@@ -339,11 +410,16 @@ function LobbyView(props: LobbyViewProps) {
                   <li
                     key={seatIdx}
                     className={cn(
-                      'flex items-center gap-3 rounded-lg border border-border bg-card p-2',
+                      'border-border bg-card flex items-center gap-3 rounded-lg border p-2',
                       info && 'shadow-sm',
                     )}
                   >
-                    <span className={cn('grid size-8 place-items-center rounded-full text-xs font-bold text-white', COLOR_BG[color])}>
+                    <span
+                      className={cn(
+                        'grid size-8 place-items-center rounded-full text-xs font-bold text-white',
+                        COLOR_BG[color],
+                      )}
+                    >
                       {seatIdx + 1}
                     </span>
                     {info ? (
@@ -353,20 +429,23 @@ function LobbyView(props: LobbyViewProps) {
                           aria-hidden
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">
-                            {info.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="truncate text-sm font-medium">{info.name}</p>
+                          <p className="text-muted-foreground text-xs">
                             {info.isBot ? 'Bot' : info.isHost ? 'Host' : 'Player'}
                             {info.ready && !info.isBot && ' · Ready'}
                           </p>
                         </div>
-                        {info.isBot && <Badge variant="secondary" className="text-[10px]"><Bot className="size-3" />BOT</Badge>}
+                        {info.isBot && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            <Bot className="size-3" />
+                            BOT
+                          </Badge>
+                        )}
                         {info.ready && !info.isBot && (
                           <CheckCircle2 className="size-4 text-emerald-500" />
                         )}
                         {!info.ready && !info.isBot && (
-                          <Circle className="size-4 text-muted-foreground" />
+                          <Circle className="text-muted-foreground size-4" />
                         )}
                         {info.isBot && isHost && (
                           <Button
@@ -383,12 +462,17 @@ function LobbyView(props: LobbyViewProps) {
                     ) : (
                       <>
                         <span
-                          className={cn('size-3 rounded-full border border-dashed', COLOR_DOT[color])}
+                          className={cn(
+                            'size-3 rounded-full border border-dashed',
+                            COLOR_DOT[color],
+                          )}
                           aria-hidden
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm text-muted-foreground">Empty seat</p>
-                          <p className="text-xs text-muted-foreground">Waiting for player…</p>
+                          <p className="text-muted-foreground text-sm">Empty seat</p>
+                          <p className="text-muted-foreground text-xs">
+                            Waiting for player…
+                          </p>
                         </div>
                         {isHost && (
                           <Button
@@ -425,7 +509,7 @@ function LobbyView(props: LobbyViewProps) {
                 </Button>
               )}
               {!isHost && !allReady && (
-                <p className="text-center text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-center text-xs">
                   Waiting for the host to start the game…
                 </p>
               )}
@@ -482,7 +566,7 @@ function EventTicker({
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
-          className="text-center text-xs text-muted-foreground"
+          className="text-muted-foreground text-center text-xs"
         >
           {text}
         </motion.p>

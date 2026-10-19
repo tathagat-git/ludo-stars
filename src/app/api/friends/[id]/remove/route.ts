@@ -15,7 +15,7 @@ import { db } from '@/lib/db'
  */
 export async function DELETE(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
@@ -25,10 +25,7 @@ export async function DELETE(
   const { id: otherUserId } = await params
 
   if (otherUserId === userId) {
-    return NextResponse.json(
-      { error: 'Cannot remove yourself' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Cannot remove yourself' }, { status: 400 })
   }
 
   await db.$transaction([

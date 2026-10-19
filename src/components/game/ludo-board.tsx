@@ -42,12 +42,12 @@ interface LudoBoardProps {
 // colored start square. Lucide's ArrowRight points right (0°) by default; we
 // rotate it to match the track's clockwise flow at that start cell.
 const START_ARROW_ROTATION: Record<Color, number> = {
-  red: 270,    // up (north) — track goes UP from (13,6)
-  green: 0,    // right (east) — track goes RIGHT from (6,0)
-  yellow: 90,  // down (south) — track goes DOWN from (0,8)
-  blue: 180,   // left (west) — track goes LEFT from (7,14)
+  red: 270, // up (north) — track goes UP from (13,6)
+  green: 0, // right (east) — track goes RIGHT from (6,0)
+  yellow: 90, // down (south) — track goes DOWN from (0,8)
+  blue: 180, // left (west) — track goes LEFT from (7,14)
   purple: 180, // left (west) — track goes LEFT from (8,5)
-  orange: 0,   // right (east) — track goes RIGHT from (6,9)
+  orange: 0, // right (east) — track goes RIGHT from (6,9)
 }
 
 // ─── Cell-type lookup ────────────────────────────────────────────────────────
@@ -87,8 +87,10 @@ function getCellInfo(row: number, col: number): CellInfo {
     const region = BASE_REGIONS[c]
     if (!region) continue
     if (
-      row >= region.row - 2 && row <= region.row + 2 &&
-      col >= region.col - 2 && col <= region.col + 2
+      row >= region.row - 2 &&
+      row <= region.row + 2 &&
+      col >= region.col - 2 &&
+      col <= region.col + 2
     ) {
       const docks = BASE_DOCKS[c]
       const dockIdx = docks.findIndex((d) => d.row === row && d.col === col)
@@ -133,10 +135,10 @@ function getTokenPlacement(token: Token, allTokens: Token[]): TokenPlacement {
     const total = sameColorFinished.length
     const spread = (i: number) => (total <= 1 ? 0 : (i - (total - 1) / 2) * 0.18)
     const offsets: Record<Color, { dx: number; dy: number }> = {
-      red: { dx: spread(idxInColor), dy: 0.24 },    // bottom triangle
+      red: { dx: spread(idxInColor), dy: 0.24 }, // bottom triangle
       green: { dx: -0.24, dy: spread(idxInColor) }, // left triangle
       yellow: { dx: spread(idxInColor), dy: -0.24 }, // top triangle
-      blue: { dx: 0.24, dy: spread(idxInColor) },    // right triangle
+      blue: { dx: 0.24, dy: spread(idxInColor) }, // right triangle
       purple: { dx: spread(idxInColor) - 0.18, dy: 0.18 }, // bottom-left-ish
       orange: { dx: spread(idxInColor) + 0.18, dy: -0.18 }, // top-right-ish
     }
@@ -174,12 +176,40 @@ function CellView({ row, col }: { row: number; col: number }) {
   switch (info.kind) {
     case 'center':
       return (
-        <div className="relative aspect-square overflow-hidden border border-slate-800 bg-white">
+        <div className="relative aspect-square overflow-hidden border border-slate-800 bg-white dark:border-slate-200/40 dark:bg-slate-900">
           {/* 4 colored triangles meeting at the center */}
-          <div className="absolute inset-0" style={{ clipPath: 'polygon(0 0, 100% 0, 50% 50%)', background: 'var(--c-yellow)' }} aria-hidden />
-          <div className="absolute inset-0" style={{ clipPath: 'polygon(0 0, 0 100%, 50% 50%)', background: 'var(--c-green)' }} aria-hidden />
-          <div className="absolute inset-0" style={{ clipPath: 'polygon(0 100%, 100% 100%, 50% 50%)', background: 'var(--c-red)' }} aria-hidden />
-          <div className="absolute inset-0" style={{ clipPath: 'polygon(100% 0, 100% 100%, 50% 50%)', background: 'var(--c-blue)' }} aria-hidden />
+          <div
+            className="absolute inset-0"
+            style={{
+              clipPath: 'polygon(0 0, 100% 0, 50% 50%)',
+              background: 'var(--c-yellow)',
+            }}
+            aria-hidden
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              clipPath: 'polygon(0 0, 0 100%, 50% 50%)',
+              background: 'var(--c-green)',
+            }}
+            aria-hidden
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              clipPath: 'polygon(0 100%, 100% 100%, 50% 50%)',
+              background: 'var(--c-red)',
+            }}
+            aria-hidden
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              clipPath: 'polygon(100% 0, 100% 100%, 50% 50%)',
+              background: 'var(--c-blue)',
+            }}
+            aria-hidden
+          />
           {/* Crown in the very center to signify the finish */}
           <div className="absolute inset-0 grid place-items-center" aria-hidden>
             <Crown className="size-3/5 text-amber-500 drop-shadow" strokeWidth={2.5} />
@@ -192,7 +222,10 @@ function CellView({ row, col }: { row: number; col: number }) {
         const rotation = START_ARROW_ROTATION[info.color]
         return (
           <div
-            className={cn('relative aspect-square border border-slate-200', COLOR_BG[info.color])}
+            className={cn(
+              'relative aspect-square border border-slate-200 dark:border-slate-700',
+              COLOR_BG[info.color],
+            )}
             aria-label={`${info.color} start — safe square, direction of travel`}
           >
             <ArrowRight
@@ -206,12 +239,18 @@ function CellView({ row, col }: { row: number; col: number }) {
       }
       if (info.isStar) {
         return (
-          <div className="relative aspect-square border border-slate-200 bg-white">
-            <Star className="absolute inset-0 m-auto size-3/5 text-emerald-500/70" strokeWidth={2} aria-label="safe square" />
+          <div className="relative aspect-square border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <Star
+              className="absolute inset-0 m-auto size-3/5 text-emerald-500/70"
+              strokeWidth={2}
+              aria-label="safe square"
+            />
           </div>
         )
       }
-      return <div className="aspect-square border border-slate-200 bg-white" />
+      return (
+        <div className="aspect-square border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" />
+      )
 
     case 'home': {
       // Approach cells (pos 100..104) get a soft tint; the final home cell
@@ -220,7 +259,7 @@ function CellView({ row, col }: { row: number; col: number }) {
       return (
         <div
           className={cn(
-            'aspect-square border border-slate-200',
+            'aspect-square border border-slate-200 dark:border-slate-700',
             isLastCell ? COLOR_BG[info.color] : COLOR_BG_SOFT[info.color],
           )}
         />
@@ -236,14 +275,17 @@ function CellView({ row, col }: { row: number; col: number }) {
           )}
         >
           {info.dockIndex !== null && (
-            <div className="absolute inset-[18%] rounded-full border-2 border-white/80 bg-white/40" aria-hidden />
+            <div
+              className="absolute inset-[18%] rounded-full border-2 border-white/80 bg-white/40"
+              aria-hidden
+            />
           )}
         </div>
       )
 
     case 'empty':
     default:
-      return <div className="aspect-square bg-muted/30" />
+      return <div className="bg-muted/30 aspect-square" />
   }
 }
 
@@ -251,7 +293,12 @@ function CellView({ row, col }: { row: number; col: number }) {
 
 const GRID = 15
 
-export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoBoardProps) {
+export function LudoBoard({
+  state,
+  mySeat,
+  onTokenClick,
+  highlightLegal,
+}: LudoBoardProps) {
   const [pickerTokenId, setPickerTokenId] = useState<number | null>(null)
 
   // Cells
@@ -320,8 +367,8 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
   return (
     <div
       className={cn(
-        'relative mx-auto aspect-square w-full max-w-[min(95vw,600px)] select-none rounded-xl border-2 border-slate-800 bg-white p-1 shadow-2xl',
-        showTurnGlow && 'ring-4 ring-emerald-400/40 animate-pulse',
+        'relative mx-auto aspect-square w-full max-w-[min(95vw,600px)] rounded-xl border-2 border-slate-800 bg-white p-1 shadow-2xl select-none dark:border-slate-200/30 dark:bg-slate-900',
+        showTurnGlow && 'animate-pulse ring-4 ring-emerald-400/40',
       )}
       role="grid"
       aria-label="Ludo board"
@@ -336,7 +383,7 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
     >
       {/* 15x15 grid of cells */}
       <div
-        className="grid h-full w-full overflow-hidden rounded-lg ring-1 ring-slate-700/40"
+        className="grid h-full w-full overflow-hidden rounded-lg ring-1 ring-slate-700/40 dark:ring-slate-300/20"
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${GRID}, 1fr)`,
@@ -352,7 +399,7 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
               {isHighlight && (
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 ring-2 ring-emerald-400 ring-offset-1 animate-pulse rounded-sm"
+                  className="pointer-events-none absolute inset-0 animate-pulse rounded-sm ring-2 ring-emerald-400 ring-offset-1"
                 />
               )}
             </div>

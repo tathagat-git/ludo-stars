@@ -34,9 +34,7 @@ export async function GET() {
   })
 
   const joinable = games
-    .map((g) =>
-      toLobbyGameDTO(g as unknown as Parameters<typeof toLobbyGameDTO>[0]),
-    )
+    .map((g) => toLobbyGameDTO(g as unknown as Parameters<typeof toLobbyGameDTO>[0]))
     .filter((dto) => {
       const isFull = dto.playerCount >= dto.maxPlayers
       const hasHuman = dto.humanCount > 0

@@ -563,3 +563,58 @@ Stage Summary:
 - Purple & orange players (seats 4 & 5) share the 52-cell track; their bases + home columns render as compact off-board strips in their PlayerCards (since the 15x15 Ludo board physically only has 4 corner bases / 4 center-approach directions).
 - Board polished to Ludo King style: colored start squares with direction arrows, safe-star markings, colored home columns, crowned center, framed board, turn glow.
 - Social links: Instagram (no GitHub).
+
+---
+Task ID: 12-ui-audit
+Agent: ui-audit-subagent
+Task: Production UI audit & polish (loading/empty/error states, responsive, a11y, dark mode)
+
+Work Log:
+- Read `/home/z/my-project/worklog.md` (Tasks 1, 7, 9, 10, 11) for project context. The app is a full-stack Ludo game (Next.js 16 + shadcn/ui + Tailwind 4 + next-themes light/dark) with auth, friends, lobby, real-time socket.io play, 2-6 player support, and a twist rule (backward moves).
+- Audited all in-scope UI files: `landing.tsx`, `dashboard.tsx`, `top-nav.tsx`, `theme-toggle.tsx`, `stats-cards.tsx`, `game-room.tsx`, `ludo-board.tsx`, `player-card.tsx`, `dice.tsx`, `token.tsx`, `direction-picker.tsx`, `chat-panel.tsx`, `game-over-modal.tsx`, `create-game-dialog.tsx`, `join-game-dialog.tsx`, `game-history.tsx`, `quick-play.tsx`, `friends-panel.tsx`, `auth-form.tsx`, `user-menu.tsx`, `footer.tsx`, `layout.tsx`, `page.tsx`, `app-providers.tsx`.
+- Confirmed prior work:
+  - Loading states: auth-form (`submitting`), create-game-dialog (`mutation.isPending`), join-game-dialog (`joinByCode.isPending` / `joinActive.isPending`), quick-play (`quickMutation.isPending`), friends-panel (skeleton loaders + per-mutation `isPending`), game-history (`query.isLoading` spinner + Retry button on `isError`). All async actions show spinners + disable. ✅
+  - Empty states: friends-panel Friends/Find/Requests tabs each have `EmptyState`; chat-panel already had "No messages yet. Say hi 👋". ✅ (Existing emoji in chat-panel left intact per the "don't add emojis" rule.)
+  - Footer: rendered on landing (line 117) + dashboard (line 135); correctly uses `mt-auto`; layout.tsx body has `flex min-h-screen flex-col`; landing main wrapper `flex-1 flex-col`; dashboard wrapper `flex-1 flex-col`. Game room omits footer intentionally (immersive UI, acceptable per task spec).
+  - Responsive: dashboard `lg:grid-cols-3`; game-room `lg:flex-row` board+chat, auto-fit `minmax(160px, 1fr)` player-card grid scales 2-6; board `max-w-[min(95vw,600px)]`; chat `h-64 w-full lg:h-auto lg:w-80`. ✅
+  - A11y: TopNav logo aria-label, ThemeToggle aria-label, UserMenu aria-label, Dice aria-label, Token aria-label per token, CellView start/star aria-labels, DirectionPicker aria-label, ChatPanel `aria-label="Room chat"`, Footer nav `aria-label="Footer"`. ✅
+- Found & fixed specific issues:
+  - `ludo-board.tsx` — track/star/center/start/home cells + board frame used `bg-white` + light `border-slate-*` colors that render as jarring pure-white blocks in dark mode. Added dark variants (`dark:bg-slate-900`, `dark:border-slate-700`, `dark:border-slate-200/40`) to every cell type and the outer frame so the board adapts to theme.
+  - `game-room.tsx` — `useGameRoom.error` was only surfaced in the LobbyView banner; in-game errors were silently swallowed. Added a `useEffect(() => { if (error) toast.error(error) }, [error])` so errors toast in BOTH lobby and in-game views. Also added a prominent full-width amber "Connection lost — trying to reconnect…" banner (AnimatePresence + framer-motion height animation, `role="status"`, `WifiOff` icon) that slides in below the header when the socket drops mid-game. Upgraded the tiny "● Connected / ○ Reconnecting…" header indicator to use proper icons (emerald dot when connected, pulsing `WifiOff` when reconnecting) with `aria-live="polite"`. Added `aria-label="Copy room code"` (and dynamic "Room code copied") and `aria-label="Leave room"` to the header's icon-only-on-mobile Copy and Leave buttons.
+  - `game-history.tsx` — empty state was plain text ("No games yet. Create or join a game to get started!") with no CTA. Replaced with a Trophy icon + headline "No games yet — start playing!" + helpful description + a "Create a game" button that opens the `CreateGameDialog`. Imported `CreateGameDialog` + `Dices` icon.
+  - `join-game-dialog.tsx` — empty open-rooms state was plain text ("No open rooms right now. Create one and invite a friend!") with no CTA. Replaced with a Users icon + the message "No open rooms right now — create one!" + an inline "Create room" button that does a quick POST `/api/lobby` (4-player classic, 0 bots) + navigates to the new room via `gotoRoom`. Proper loading state via `quickCreate.isPending` (Loader2 spinner). Imported `Dices` icon + added the `quickCreate` mutation.
+
+Stage Summary:
+- Files updated: `src/components/game/ludo-board.tsx`, `src/components/game/game-room.tsx`, `src/components/lobby/game-history.tsx`, `src/components/lobby/join-game-dialog.tsx`. Work record saved at `/home/z/my-project/agent-ctx/12-ui-audit.md`.
+- Key fixes: (1) dark-mode-aware board cells (the previous `bg-white` rendered as a pure-white slab in dark mode); (2) game-room errors now toast in both lobby and in-game views (previously swallowed mid-game); (3) a prominent animated "Connection lost — reconnecting…" banner replaces the easily-missed inline text indicator; (4) game-history empty state gains a "Create a game" CTA button; (5) join-game-dialog empty rooms state gains an inline "Create room" quick-action button; (6) aria-labels added to the game-room header's icon-only-on-mobile Copy/Leave buttons.
+- No game logic, engine, bot AI, websocket protocol, API routes, or game-service code was touched. No new dependencies added.
+- Lint status: `bun run lint` — passes cleanly (0 errors, 0 warnings) for all in-scope files. The single remaining project-wide warning is in `src/app/global-error.tsx` (outside my scope — pre-existing unused eslint-disable directive).
+- Prettier status: `bunx prettier --check "src/components/game/ludo-board.tsx" "src/components/game/game-room.tsx" "src/components/lobby/game-history.tsx" "src/components/lobby/join-game-dialog.tsx"` — all pass. (4 other files outside my scope — `src/app/{error,global-error,loading}.tsx`, `src/lib/db.ts` — still have prettier issues; not touched.)
+- Dev server (`bun run dev`) — re-compiles cleanly after each edit; no runtime errors logged.
+
+---
+Task ID: 13
+Agent: main
+Task: Production-readiness pass — format, clean logs, error boundaries, UI polish, hostability verification.
+
+Work Log:
+- **Code formatting**: installed `prettier` + `prettier-plugin-tailwindcss` (dev deps). Added `.prettierrc.json` (semi:false, singleQuote, trailingComma:all, printWidth:90, tailwindcss plugin) and `.prettierignore`. Ran `prettier --write` on all `src/**/*.{ts,tsx,css}` + `mini-services/game-service/index.ts`. Added `format` + `format:check` scripts to package.json. All files now use consistent Prettier style.
+- **Removed debug logs**: stripped verbose per-roll/move diagnostic `console.log` calls from `mini-services/game-service/index.ts` (kept operational lifecycle logs: room create/destroy/join/leave/start/over). Silenced Prisma query logging in production (`src/lib/db.ts` now uses `['error','warn']` in prod, `['query','error','warn']` in dev).
+- **Error boundaries**: added `src/app/error.tsx` (route-level, keeps layout shell), `src/app/global-error.tsx` (global, replaces document), and `src/app/loading.tsx` (route loading state with spinner). All use semantic HTML, lucide icons, retry + go-home buttons, error digest display.
+- **UI polish (subagent Task 12)**: dark-mode-aware board cells (`bg-white dark:bg-slate-900`), error visibility via toast in game room (both lobby + in-game), reconnecting banner with WifiOff icon + aria-live, game-history empty state with CTA, join-game-dialog empty state with quick-create button, aria-labels on icon-only mobile buttons.
+- **Copy fixes**: updated landing hero + quick-play button to say "2–6 players" (was "2/3/4"). Landing feature bullet updated to "2–6 players".
+- **Production config**: created `.env.example` (documents DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL). Updated package.json `name` to "ludo-stars", version to "1.0.0", added `game-service` script.
+- **README**: comprehensive `README.md` with features, architecture diagram, getting started (dev + prod), scripts table, twist-rule explanation, bot AI explanation, tech stack, project structure.
+- **Type fix**: fixed Prisma `log` type error in `src/lib/db.ts` (inline ternary instead of extracted variable).
+
+Verification:
+- ✅ `bun run build` — production build succeeds (compiled in 17.8s, 9 routes generated, 0 errors).
+- ✅ `bun run lint` — 0 errors, 0 warnings.
+- ✅ `prettier --check` — all files formatted.
+- ✅ `tsc --noEmit` — 0 app errors (mini-services TS error is expected: separate Bun project using .ts import extensions, handled natively by Bun).
+- ✅ Agent-browser end-to-end: landing (Instagram+Twitter footer, no GitHub) → login → dashboard (dark mode toggle works) → create 6-player twist room → start game → roll 6 → release token → roll until direction picker appears → click Backward → twist move executes.
+- ✅ All 3 services healthy: Next.js (3000), game-service (3003), Caddy (81).
+
+Stage Summary:
+- The app is production-ready and hostable: `bun run build` succeeds, all code is formatted + linted + type-checked, error boundaries + loading states in place, debug logs removed, README + .env.example documentation complete.
+- To host: set NEXTAUTH_SECRET + NEXTAUTH_URL in .env, run `bun run build && bun run start`, and separately run the game-service (`cd mini-services/game-service && bun run start`).

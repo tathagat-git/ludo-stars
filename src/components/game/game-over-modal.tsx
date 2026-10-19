@@ -60,9 +60,7 @@ export function GameOverModal({
             <Trophy className="size-7" />
           </div>
           <DialogTitle className="text-2xl font-bold">Game Over!</DialogTitle>
-          <DialogDescription>
-            Final standings
-          </DialogDescription>
+          <DialogDescription>Final standings</DialogDescription>
         </DialogHeader>
 
         <div className="relative z-10 flex flex-col gap-2 p-4 pt-2">
@@ -82,24 +80,35 @@ export function GameOverModal({
                 <span
                   className={cn(
                     'grid size-8 shrink-0 place-items-center rounded-full text-sm font-bold',
-                    isWinner ? 'bg-amber-400 text-white' : 'bg-muted text-muted-foreground',
+                    isWinner
+                      ? 'bg-amber-400 text-white'
+                      : 'bg-muted text-muted-foreground',
                   )}
                 >
                   {RANK_LABELS[rank - 1] ?? `${rank}`}
                 </span>
                 <Avatar className={cn('size-9 ring-2', COLOR_BORDER[p.color])}>
-                  <AvatarFallback className={cn(COLOR_BG_SOFT[p.color], COLOR_TEXT[p.color], 'font-bold')}>
+                  <AvatarFallback
+                    className={cn(
+                      COLOR_BG_SOFT[p.color],
+                      COLOR_TEXT[p.color],
+                      'font-bold',
+                    )}
+                  >
                     {(p.name || '?').charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     {p.isBot ? 'Bot' : 'Player'} · Seat {p.seat + 1}
                   </p>
                 </div>
                 {isWinner && <Crown className="size-5 text-amber-500" />}
-                <span className={cn('size-3 rounded-full', COLOR_BG[p.color])} aria-hidden />
+                <span
+                  className={cn('size-3 rounded-full', COLOR_BG[p.color])}
+                  aria-hidden
+                />
               </div>
             )
           })}
@@ -137,8 +146,14 @@ export function GameOverModal({
             animation: confetti-fall 2.4s ease-in-out infinite alternate;
           }
           @keyframes confetti-fall {
-            0% { background-position: 0% 0%; transform: translateY(-4px); }
-            100% { background-position: 100% 100%; transform: translateY(4px); }
+            0% {
+              background-position: 0% 0%;
+              transform: translateY(-4px);
+            }
+            100% {
+              background-position: 100% 100%;
+              transform: translateY(4px);
+            }
           }
         `}</style>
       </DialogContent>

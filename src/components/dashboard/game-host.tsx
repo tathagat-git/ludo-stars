@@ -1,9 +1,9 @@
-"use client";
+'use client'
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
+import * as React from 'react'
+import { useRouter } from 'next/navigation'
 
-import { GameRoom } from "@/components/game/game-room";
+import { GameRoom } from '@/components/game/game-room'
 
 /**
  * GameHost — small client wrapper around Task 7's `<GameRoom />`.
@@ -23,20 +23,20 @@ import { GameRoom } from "@/components/game/game-room";
  *   tear down its websocket connection; both approaches end at `/`.
  */
 export interface GameHostProps {
-  code: string;
-  userId: string;
-  username: string;
-  mode: "classic" | "twist";
-  maxPlayers: number;
+  code: string
+  userId: string
+  username: string
+  mode: 'classic' | 'twist'
+  maxPlayers: number
 }
 
 export function GameHost({ code, userId, username, mode, maxPlayers }: GameHostProps) {
-  const router = useRouter();
+  const router = useRouter()
 
   const handleExit = React.useCallback(() => {
     // Soft-navigate back to the dashboard.
-    router.push("/");
-  }, [router]);
+    router.push('/')
+  }, [router])
 
   return (
     <GameRoom
@@ -47,7 +47,7 @@ export function GameHost({ code, userId, username, mode, maxPlayers }: GameHostP
       maxPlayers={maxPlayers}
       onExit={handleExit}
     />
-  );
+  )
 }
 
-export default GameHost;
+export default GameHost

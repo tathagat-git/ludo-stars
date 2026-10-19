@@ -11,11 +11,7 @@
 // panel) so it works regardless of the app-level provider setup.
 
 import * as React from 'react'
-import {
-  QueryClient,
-  QueryClientProvider,
-  useMutation,
-} from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
 import { Toaster as SonnerToaster, toast } from 'sonner'
 import { Bot, Dice5, Loader2, Plus, Zap } from 'lucide-react'
 
@@ -90,7 +86,7 @@ function QuickPlayImpl() {
     <Card className="w-full overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Zap className="size-4 text-primary" />
+          <Zap className="text-primary size-4" />
           Quick play
         </CardTitle>
         <CardDescription className="text-xs">
@@ -111,7 +107,7 @@ function QuickPlayImpl() {
           )}
           <span className="text-sm font-semibold">Play vs Bots</span>
           <span className="text-[11px] font-normal opacity-80">
-            4-player twist · 3 AI opponents
+            4-player twist · 3 bots
           </span>
         </Button>
 

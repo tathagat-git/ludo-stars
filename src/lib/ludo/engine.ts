@@ -105,7 +105,16 @@ export interface LegalMove {
 
 export type GameEvent =
   | { type: 'roll'; seat: number; dice: number }
-  | { type: 'move'; seat: number; tokenId: number; direction: 'forward' | 'backward'; fromPos: number; toPos: number; captures: number[]; finishes: boolean }
+  | {
+      type: 'move'
+      seat: number
+      tokenId: number
+      direction: 'forward' | 'backward'
+      fromPos: number
+      toPos: number
+      captures: number[]
+      finishes: boolean
+    }
   | { type: 'pass'; seat: number; reason: 'no-moves' | 'three-sixes' }
   | { type: 'finish'; seat: number; rank: number }
   | { type: 'gameover'; winners: number[] }
@@ -146,7 +155,7 @@ export function progress(pos: number, seat: number): number {
   const color = colorOf(seat)
   const start = COLOR_START[color]
   if (isOnTrack(pos)) {
-    return ((pos - start) + 52) % 52
+    return (pos - start + 52) % 52
   }
   // home column
   return 52 + (pos - 100)
@@ -215,7 +224,12 @@ export function moveBackward(pos: number, steps: number, seat: number): number {
 
 // ─── Engine ──────────────────────────────────────────────────────────────────
 
-export function createInitialState(gameId: string, mode: 'classic' | 'twist', maxPlayers: number, players: Player[]): GameState {
+export function createInitialState(
+  gameId: string,
+  mode: 'classic' | 'twist',
+  maxPlayers: number,
+  players: Player[],
+): GameState {
   const tokens: Token[] = []
   for (let s = 0; s < maxPlayers; s++) {
     for (let i = 0; i < 4; i++) {
@@ -249,7 +263,11 @@ export function tokenById(state: GameState, tokenId: number): Token {
 /// Compute the set of legal moves for `seat` given `dice`.
 /// In 'twist' mode, tokens on the track may also move BACKWARD by `dice`,
 /// bounded by their own start square.
-export function computeLegalMoves(state: GameState, seat: number, dice: number): LegalMove[] {
+export function computeLegalMoves(
+  state: GameState,
+  seat: number,
+  dice: number,
+): LegalMove[] {
   const moves: LegalMove[] = []
   const tokens = tokensForSeat(state, seat)
   const isTwist = state.mode === 'twist'
@@ -377,7 +395,11 @@ export function applyRoll(state: GameState, dice?: number): GameState {
 /// Apply a chosen legal move. Returns the new state with captures, finishes
 /// and turn advancement handled. Auto-rolls again if dice was 6 (and not
 /// a finish of all tokens).
-export function applyMove(state: GameState, tokenId: number, direction: 'forward' | 'backward'): GameState {
+export function applyMove(
+  state: GameState,
+  tokenId: number,
+  direction: 'forward' | 'backward',
+): GameState {
   if (state.phase !== 'move') return state
   const move = state.legalMoves.find(
     (m) => m.tokenId === tokenId && m.direction === direction,
@@ -415,9 +437,7 @@ export function applyMove(state: GameState, tokenId: number, direction: 'forward
     next = {
       ...next,
       players: next.players.map((p) =>
-        p.seat === state.currentSeat
-          ? { ...p, finishedAt: Date.now(), rank }
-          : p,
+        p.seat === state.currentSeat ? { ...p, finishedAt: Date.now(), rank } : p,
       ),
       winners: [...next.winners, state.currentSeat],
       lastEvent: { type: 'finish', seat: state.currentSeat, rank },
@@ -426,9 +446,7 @@ export function applyMove(state: GameState, tokenId: number, direction: 'forward
 
   // ── Game over? ──
   // Game ends when only one seat has not finished (the last player is the loser).
-  const remainingSeats = state.players.filter(
-    (p) => !next.winners.includes(p.seat),
-  )
+  const remainingSeats = state.players.filter((p) => !next.winners.includes(p.seat))
   if (remainingSeats.length <= 1 && next.winners.length >= state.maxPlayers - 1) {
     next = {
       ...next,
@@ -450,7 +468,10 @@ export function applyMove(state: GameState, tokenId: number, direction: 'forward
 }
 
 /// Pass turn to the next non-finished seat (in seat order, wrapping).
-export function passTurn(state: GameState, reason?: 'no-moves' | 'three-sixes'): GameState {
+export function passTurn(
+  state: GameState,
+  reason?: 'no-moves' | 'three-sixes',
+): GameState {
   let nextSeat = state.currentSeat
   for (let i = 0; i < state.maxPlayers; i++) {
     nextSeat = (nextSeat + 1) % state.maxPlayers

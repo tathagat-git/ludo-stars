@@ -27,6 +27,7 @@ import {
   Users,
   Bot,
   RefreshCw,
+  Dices,
 } from 'lucide-react'
 
 import {
@@ -109,7 +110,7 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
   const [code, setCode] = React.useState('')
   const queryClient = useQueryClient()
 
-  const activeQuery = useQuery< LobbyGameDTO[]>({
+  const activeQuery = useQuery<LobbyGameDTO[]>({
     queryKey: ['lobby', 'active'],
     queryFn: async () => {
       const res = await fetch('/api/lobby/active')
@@ -122,10 +123,9 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
 
   const joinByCode = useMutation({
     mutationFn: async (roomCode: string) => {
-      const res = await fetch(
-        `/api/lobby/${encodeURIComponent(roomCode)}/join`,
-        { method: 'POST' },
-      )
+      const res = await fetch(`/api/lobby/${encodeURIComponent(roomCode)}/join`, {
+        method: 'POST',
+      })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string }
         throw new Error(err.error ?? `Failed (${res.status})`)
@@ -145,10 +145,9 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
 
   const joinActive = useMutation({
     mutationFn: async (roomCode: string) => {
-      const res = await fetch(
-        `/api/lobby/${encodeURIComponent(roomCode)}/join`,
-        { method: 'POST' },
-      )
+      const res = await fetch(`/api/lobby/${encodeURIComponent(roomCode)}/join`, {
+        method: 'POST',
+      })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string }
         throw new Error(err.error ?? `Failed (${res.status})`)
@@ -164,6 +163,33 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Failed to join'
+      toast.error(msg)
+    },
+  })
+
+  // Quick-create from the empty-rooms state: spins up a default 4-player
+  // classic room with no bots and navigates to it. Mirrors the
+  // QuickPlay "Create Private Room" flow but inline.
+  const quickCreate = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/lobby', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'classic', maxPlayers: 4, botCount: 0 }),
+      })
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(err.error ?? `Failed (${res.status})`)
+      }
+      return (await res.json()) as { code: string }
+    },
+    onSuccess: (data) => {
+      toast.success(`Room ${data.code} created`)
+      setOpen(false)
+      setTimeout(() => gotoRoom(data.code), 80)
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Failed to create room'
       toast.error(msg)
     },
   })
@@ -210,15 +236,12 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
               autoComplete="off"
               spellCheck={false}
               placeholder="ABC234"
-              className="font-mono uppercase tracking-widest"
+              className="font-mono tracking-widest uppercase"
               value={code}
               maxLength={6}
               onChange={(e) => setCode(normalizeCode(e.target.value))}
             />
-            <Button
-              type="submit"
-              disabled={joinByCode.isPending || code.length !== 6}
-            >
+            <Button type="submit" disabled={joinByCode.isPending || code.length !== 6}>
               {joinByCode.isPending ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
@@ -227,7 +250,7 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
               Join
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             6-character codes use A–Z and 2–9 (no 0/O/1/I).
           </p>
         </form>
@@ -246,27 +269,24 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
               disabled={activeQuery.isFetching}
             >
               <RefreshCw
-                className={cn(
-                  'size-3.5',
-                  activeQuery.isFetching && 'animate-spin',
-                )}
+                className={cn('size-3.5', activeQuery.isFetching && 'animate-spin')}
               />
               Refresh
             </Button>
           </div>
 
-          <div className="max-h-72 overflow-y-auto rounded-md border border-border bg-muted/30 pr-1 lobby-scroll">
+          <div className="border-border bg-muted/30 lobby-scroll max-h-72 overflow-y-auto rounded-md border pr-1">
             {activeQuery.isLoading ? (
-              <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+              <div className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm">
                 <Loader2 className="size-4 animate-spin" />
                 Loading…
               </div>
             ) : activeQuery.isError ? (
-              <div className="px-3 py-8 text-center text-sm text-destructive">
+              <div className="text-destructive px-3 py-8 text-center text-sm">
                 Failed to load rooms.
               </div>
             ) : activeQuery.data && activeQuery.data.length > 0 ? (
-              <ul className="divide-y divide-border">
+              <ul className="divide-border divide-y">
                 {activeQuery.data.map((g) => (
                   <li
                     key={g.id}
@@ -281,7 +301,7 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
                           {g.mode}
                         </Badge>
                       </div>
-                      <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="text-muted-foreground mt-0.5 flex items-center gap-3 text-xs">
                         <span className="inline-flex items-center gap-1">
                           <Users className="size-3" />
                           {g.playerCount}/{g.maxPlayers}
@@ -295,13 +315,9 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
                     <Button
                       size="sm"
                       onClick={() => joinActive.mutate(g.code)}
-                      disabled={
-                        joinActive.isPending ||
-                        joinActive.variables === g.code
-                      }
+                      disabled={joinActive.isPending || joinActive.variables === g.code}
                     >
-                      {joinActive.isPending &&
-                      joinActive.variables === g.code ? (
+                      {joinActive.isPending && joinActive.variables === g.code ? (
                         <Loader2 className="size-3.5 animate-spin" />
                       ) : (
                         <LogIn className="size-3.5" />
@@ -312,10 +328,25 @@ function JoinGameDialogImpl({ trigger }: JoinGameDialogProps) {
                 ))}
               </ul>
             ) : (
-              <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-                No open rooms right now.
-                <br />
-                Create one and invite a friend!
+              <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-sm">
+                <Users className="text-muted-foreground/50 size-6" aria-hidden />
+                <p className="text-muted-foreground text-xs">
+                  No open rooms right now — create one!
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-1"
+                  onClick={() => quickCreate.mutate()}
+                  disabled={quickCreate.isPending}
+                >
+                  {quickCreate.isPending ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Dices className="size-3.5" />
+                  )}
+                  Create room
+                </Button>
               </div>
             )}
           </div>

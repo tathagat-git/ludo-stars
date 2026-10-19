@@ -1,8 +1,8 @@
-"use client";
+'use client'
 
-import { SessionProvider } from "next-auth/react";
-import type { Session } from "next-auth";
-import type { ReactNode } from "react";
+import { SessionProvider } from 'next-auth/react'
+import type { Session } from 'next-auth'
+import type { ReactNode } from 'react'
 
 /**
  * Client-side wrapper that injects the NextAuth SessionProvider into the
@@ -13,10 +13,10 @@ export function Providers({
   children,
   session,
 }: {
-  children: ReactNode;
-  session?: Session | null;
+  children: ReactNode
+  session?: Session | null
 }) {
-  return <SessionProvider session={session}>{children}</SessionProvider>;
+  return <SessionProvider session={session}>{children}</SessionProvider>
 }
 
-export default Providers;
+export default Providers

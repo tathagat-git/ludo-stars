@@ -1,1 +1,1 @@
-export { authOptions, default } from "@/lib/auth";
+export { authOptions, default } from '@/lib/auth'

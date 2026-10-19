@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
-import { getServerSession } from "next-auth";
+import type { Metadata } from 'next'
+import { getServerSession } from 'next-auth'
 
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { Landing } from "@/components/landing/landing";
-import { Dashboard, type DashboardUser } from "@/components/dashboard/dashboard";
-import { GameHost } from "@/components/dashboard/game-host";
+import { authOptions } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { Landing } from '@/components/landing/landing'
+import { Dashboard, type DashboardUser } from '@/components/dashboard/dashboard'
+import { GameHost } from '@/components/dashboard/game-host'
 
 /**
  * Top-level routing entry point.
@@ -30,31 +30,31 @@ import { GameHost } from "@/components/dashboard/game-host";
  */
 
 interface HomePageProps {
-  searchParams: Promise<{ room?: string | string[] }>;
+  searchParams: Promise<{ room?: string | string[] }>
 }
 
 export default async function Home({ searchParams }: HomePageProps) {
-  const params = await searchParams;
+  const params = await searchParams
 
   // Normalize room: accept a single string or the first of an array.
-  const rawRoom = params?.room;
+  const rawRoom = params?.room
   const room =
-    typeof rawRoom === "string"
+    typeof rawRoom === 'string'
       ? rawRoom.trim()
       : Array.isArray(rawRoom) && rawRoom.length > 0
         ? String(rawRoom[0]).trim()
-        : "";
+        : ''
 
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions)
 
   // Not logged in → landing page + auth form.
   if (!session?.user) {
-    return <Landing />;
+    return <Landing />
   }
 
-  const user = session.user as DashboardUser & { id?: string };
-  const userId = user.id ?? "";
-  const username = user.username ?? user.name ?? "Player";
+  const user = session.user as DashboardUser & { id?: string }
+  const userId = user.id ?? ''
+  const username = user.username ?? user.name ?? 'Player'
 
   // Logged in + room code → game room.
   if (room) {
@@ -62,16 +62,16 @@ export default async function Home({ searchParams }: HomePageProps) {
     // websocket room is created with the correct configuration. If the row
     // is missing (e.g., room created directly via socket without the lobby
     // API), fall back to the defaults (twist, 4 players).
-    let mode: "classic" | "twist" = "twist";
-    let maxPlayers = 4;
+    let mode: 'classic' | 'twist' = 'twist'
+    let maxPlayers = 4
     try {
       const game = await db.game.findUnique({
         where: { code: room.toUpperCase() },
         select: { mode: true, maxPlayers: true },
-      });
+      })
       if (game) {
-        mode = game.mode === "classic" ? "classic" : "twist";
-        maxPlayers = game.maxPlayers;
+        mode = game.mode === 'classic' ? 'classic' : 'twist'
+        maxPlayers = game.maxPlayers
       }
     } catch {
       // DB read failure is non-fatal — use defaults.
@@ -84,14 +84,14 @@ export default async function Home({ searchParams }: HomePageProps) {
         mode={mode}
         maxPlayers={maxPlayers}
       />
-    );
+    )
   }
 
   // Logged in, no room → dashboard.
-  return <Dashboard user={{ ...user, id: userId, username }} />;
+  return <Dashboard user={{ ...user, id: userId, username }} />
 }
 
 // Page-level metadata override (the root layout already sets defaults).
 export const metadata: Metadata = {
-  title: "Ludo Stars — Play Ludo with Friends & Bots",
-};
+  title: 'Ludo Stars — Play Ludo with Friends & Bots',
+}

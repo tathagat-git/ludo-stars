@@ -151,7 +151,7 @@ function EmptyState({
     <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
       <div className="text-muted-foreground">{icon}</div>
       <p className="text-sm font-medium">{title}</p>
-      <p className="text-xs text-muted-foreground max-w-[18rem]">{description}</p>
+      <p className="text-muted-foreground max-w-[18rem] text-xs">{description}</p>
     </div>
   )
 }
@@ -170,7 +170,7 @@ function UserRow({
   badge?: React.ReactNode
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-accent/50">
+    <div className="hover:bg-accent/50 flex items-center gap-3 rounded-lg p-2 transition-colors">
       <Avatar className="size-9">
         {avatar ? <AvatarImage src={avatar} alt={username} /> : null}
         <AvatarFallback>{initials(name, username)}</AvatarFallback>
@@ -180,11 +180,11 @@ function UserRow({
           <span className="truncate text-sm font-medium">@{username}</span>
           {badge}
         </div>
-        {name ? (
-          <p className="truncate text-xs text-muted-foreground">{name}</p>
-        ) : null}
+        {name ? <p className="text-muted-foreground truncate text-xs">{name}</p> : null}
       </div>
-      {children ? <div className="flex shrink-0 items-center gap-1">{children}</div> : null}
+      {children ? (
+        <div className="flex shrink-0 items-center gap-1">{children}</div>
+      ) : null}
     </div>
   )
 }
@@ -192,7 +192,9 @@ function UserRow({
 /* ------------------------------ Friends tab ------------------------------ */
 
 function FriendsList() {
-  const { data, isLoading, isError, error, refetch } = useQuery<{ friends: FriendUser[] }>({
+  const { data, isLoading, isError, error, refetch } = useQuery<{
+    friends: FriendUser[]
+  }>({
     queryKey: ['friends'],
     queryFn: () => http<{ friends: FriendUser[] }>('/api/friends'),
   })
@@ -213,14 +215,11 @@ function FriendsList() {
     return (
       <div className="space-y-2 p-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 rounded-lg p-2"
-          >
-            <div className="size-9 animate-pulse rounded-full bg-muted" />
+          <div key={i} className="flex items-center gap-3 rounded-lg p-2">
+            <div className="bg-muted size-9 animate-pulse rounded-full" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-2.5 w-16 animate-pulse rounded bg-muted" />
+              <div className="bg-muted h-3 w-24 animate-pulse rounded" />
+              <div className="bg-muted h-2.5 w-16 animate-pulse rounded" />
             </div>
           </div>
         ))}
@@ -263,13 +262,13 @@ function FriendsList() {
                 'gap-1 border-transparent text-[10px] font-normal',
                 f.online
                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-muted text-muted-foreground'
+                  : 'bg-muted text-muted-foreground',
               )}
             >
               <span
                 className={cn(
                   'inline-block size-1.5 rounded-full',
-                  f.online ? 'bg-emerald-500' : 'bg-muted-foreground/60'
+                  f.online ? 'bg-emerald-500' : 'bg-muted-foreground/60',
                 )}
                 aria-hidden
               />
@@ -280,7 +279,7 @@ function FriendsList() {
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive h-7 px-2 text-xs"
             disabled={removeMutation.isPending}
             onClick={() => removeMutation.mutate(f.id)}
             aria-label={`Remove ${f.username} from friends`}
@@ -292,7 +291,7 @@ function FriendsList() {
       <Button
         variant="ghost"
         size="sm"
-        className="mt-1 w-full text-xs text-muted-foreground"
+        className="text-muted-foreground mt-1 w-full text-xs"
         onClick={() => refetch()}
       >
         Refresh list
@@ -308,11 +307,13 @@ function FindList() {
   const debounced = useDebouncedValue(query, 300)
   const enabled = debounced.trim().length > 0
 
-  const { data, isLoading, isError, error, isFetching } = useQuery<{ users: SearchUser[] }>({
+  const { data, isLoading, isError, error, isFetching } = useQuery<{
+    users: SearchUser[]
+  }>({
     queryKey: ['friend-search', debounced],
     queryFn: () =>
       http<{ users: SearchUser[] }>(
-        `/api/friends/search?q=${encodeURIComponent(debounced)}`
+        `/api/friends/search?q=${encodeURIComponent(debounced)}`,
       ),
     enabled,
   })
@@ -326,7 +327,7 @@ function FindList() {
         {
           method: 'POST',
           body: JSON.stringify({ toUserId }),
-        }
+        },
       ),
     onSuccess: (res) => {
       if (res.autoAccepted) {
@@ -354,7 +355,7 @@ function FindList() {
         }}
       >
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -378,14 +379,11 @@ function FindList() {
       ) : isLoading || isFetching ? (
         <div className="space-y-2 p-1">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 rounded-lg p-2"
-            >
-              <div className="size-9 animate-pulse rounded-full bg-muted" />
+            <div key={i} className="flex items-center gap-3 rounded-lg p-2">
+              <div className="bg-muted size-9 animate-pulse rounded-full" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-24 animate-pulse rounded bg-muted" />
-                <div className="h-2.5 w-16 animate-pulse rounded bg-muted" />
+                <div className="bg-muted h-3 w-24 animate-pulse rounded" />
+                <div className="bg-muted h-2.5 w-16 animate-pulse rounded" />
               </div>
             </div>
           ))}
@@ -422,7 +420,7 @@ function FindList() {
                 ) : u.hasPendingRequest ? (
                   <Badge
                     variant="outline"
-                    className="border-transparent bg-amber-500/10 text-amber-600 text-[10px] font-normal dark:text-amber-400"
+                    className="border-transparent bg-amber-500/10 text-[10px] font-normal text-amber-600 dark:text-amber-400"
                   >
                     Pending
                   </Badge>
@@ -432,9 +430,7 @@ function FindList() {
               <Button
                 size="sm"
                 className="h-7 gap-1 px-2 text-xs"
-                disabled={
-                  u.isFriend || u.hasPendingRequest || sendMutation.isPending
-                }
+                disabled={u.isFriend || u.hasPendingRequest || sendMutation.isPending}
                 onClick={() => sendMutation.mutate(u.id)}
                 aria-label={`Send friend request to ${u.username}`}
               >
@@ -485,14 +481,11 @@ function RequestsList() {
     return (
       <div className="space-y-2 p-1">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 rounded-lg p-2"
-          >
-            <div className="size-9 animate-pulse rounded-full bg-muted" />
+          <div key={i} className="flex items-center gap-3 rounded-lg p-2">
+            <div className="bg-muted size-9 animate-pulse rounded-full" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-2.5 w-16 animate-pulse rounded bg-muted" />
+              <div className="bg-muted h-3 w-24 animate-pulse rounded" />
+              <div className="bg-muted h-2.5 w-16 animate-pulse rounded" />
             </div>
           </div>
         ))}
@@ -542,7 +535,7 @@ function RequestsList() {
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive h-7 px-2 text-xs"
             disabled={acceptMutation.isPending || declineMutation.isPending}
             onClick={() => declineMutation.mutate(r.id)}
             aria-label={`Decline friend request from ${r.from.username}`}
@@ -645,9 +638,5 @@ export function FriendsPanel() {
  * height so the panel doesn't push the whole page.
  */
 function FriendsScrollArea({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="max-h-96 overflow-y-auto pr-1 friends-scroll">
-      {children}
-    </div>
-  )
+  return <div className="friends-scroll max-h-96 overflow-y-auto pr-1">{children}</div>
 }

@@ -1,14 +1,10 @@
-"use client";
+'use client'
 
-import { useSession, signOut } from "next-auth/react";
-import { LogOut } from "lucide-react";
+import { useSession, signOut } from 'next-auth/react'
+import { LogOut } from 'lucide-react'
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +12,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu'
 
 /**
  * Compact user menu shown when the user is authenticated. Renders the
@@ -26,15 +22,15 @@ import {
  * rendered to avoid an unauthenticated flash on first paint.
  */
 export function UserMenu() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useSession()
 
-  if (status === "loading") return null;
-  if (!session?.user) return null;
+  if (status === 'loading') return null
+  if (!session?.user) return null
 
-  const username = session.user.username ?? "user";
-  const displayName = session.user.name ?? username;
-  const avatar = session.user.image ?? undefined;
-  const initials = displayName.slice(0, 2).toUpperCase();
+  const username = session.user.username ?? 'user'
+  const displayName = session.user.name ?? username
+  const avatar = session.user.image ?? undefined
+  const initials = displayName.slice(0, 2).toUpperCase()
 
   return (
     <DropdownMenu>
@@ -49,23 +45,21 @@ export function UserMenu() {
             {avatar ? <AvatarImage src={avatar} alt={displayName} /> : null}
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <span className="max-w-[10rem] truncate text-sm font-medium">
-            {username}
-          </span>
+          <span className="max-w-[10rem] truncate text-sm font-medium">{username}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="flex flex-col gap-0.5">
           <span className="truncate">{displayName}</span>
           <span className="text-muted-foreground truncate text-xs font-normal">
-            {session.user.email ?? ""}
+            {session.user.email ?? ''}
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={(e) => {
-            e.preventDefault();
-            signOut({ callbackUrl: "/" });
+            e.preventDefault()
+            signOut({ callbackUrl: '/' })
           }}
           className="text-destructive focus:text-destructive"
         >
@@ -74,7 +68,7 @@ export function UserMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }
 
-export default UserMenu;
+export default UserMenu

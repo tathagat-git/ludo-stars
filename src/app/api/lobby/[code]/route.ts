@@ -14,10 +14,7 @@ import { toLobbyGameDTO } from '@/lib/lobby'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(
-  _req: Request,
-  ctx: { params: Promise<{ code: string }> },
-) {
+export async function GET(_req: Request, ctx: { params: Promise<{ code: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -42,8 +39,6 @@ export async function GET(
   }
 
   return NextResponse.json({
-    game: toLobbyGameDTO(
-      game as unknown as Parameters<typeof toLobbyGameDTO>[0],
-    ),
+    game: toLobbyGameDTO(game as unknown as Parameters<typeof toLobbyGameDTO>[0]),
   })
 }

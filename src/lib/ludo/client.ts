@@ -117,7 +117,12 @@ export interface RoomConfig {
   maxPlayers?: number
 }
 
-export function createGameSocket(code: string, userId: string, username: string, config?: RoomConfig): Socket {
+export function createGameSocket(
+  code: string,
+  userId: string,
+  username: string,
+  config?: RoomConfig,
+): Socket {
   const socket = io('/?XTransformPort=' + GAME_SERVICE_PORT, {
     transports: ['websocket', 'polling'],
     forceNew: true,
@@ -129,7 +134,17 @@ export function createGameSocket(code: string, userId: string, username: string,
   // Stash join payload (including optional room config) so we can re-emit on
   // reconnect. The server reads mode/maxPlayers only when creating a NEW
   // room; on reconnect it ignores them (the room already exists).
-  ;(socket as unknown as { __joinPayload?: { code: string; userId: string; username: string; mode?: string; maxPlayers?: number } }).__joinPayload = {
+  ;(
+    socket as unknown as {
+      __joinPayload?: {
+        code: string
+        userId: string
+        username: string
+        mode?: string
+        maxPlayers?: number
+      }
+    }
+  ).__joinPayload = {
     code,
     userId,
     username,
@@ -139,13 +154,20 @@ export function createGameSocket(code: string, userId: string, username: string,
   return socket
 }
 
-export function useGameRoom(code: string, userId: string, username: string, config?: RoomConfig): UseGameRoomResult {
+export function useGameRoom(
+  code: string,
+  userId: string,
+  username: string,
+  config?: RoomConfig,
+): UseGameRoomResult {
   // Create the socket lazily on first render. Re-create it only if the
   // (code, userId, username) tuple changes (rare in practice — the GameRoom
   // is usually mounted fresh per game). Using a lazy initializer avoids the
   // "setState in effect" lint warning while keeping the socket stable across
   // re-renders.
-  const [socket] = useState<Socket>(() => createGameSocket(code, userId, username, config))
+  const [socket] = useState<Socket>(() =>
+    createGameSocket(code, userId, username, config),
+  )
   const [connected, setConnected] = useState(false)
   const [room, setRoom] = useState<RoomState | null>(null)
   const [gameState, setGameState] = useState<GameState | null>(null)
@@ -179,62 +201,82 @@ export function useGameRoom(code: string, userId: string, username: string, conf
       setRoom(state)
       if (state.gameState) setGameState(state.gameState)
     })
-    s.on(SERVER_EV.ROOM_JOINED, (_meta: {
-      roomId: string
-      code: string
-      seat: number
-      mode: 'classic' | 'twist'
-      maxPlayers: number
-    }) => {
-      // Full room state is delivered separately via `room:state`. We just
-      // log the seat assignment here.
-      // (No state mutation — `room:state` will arrive immediately after.)
-    })
+    s.on(
+      SERVER_EV.ROOM_JOINED,
+      (_meta: {
+        roomId: string
+        code: string
+        seat: number
+        mode: 'classic' | 'twist'
+        maxPlayers: number
+      }) => {
+        // Full room state is delivered separately via `room:state`. We just
+        // log the seat assignment here.
+        // (No state mutation — `room:state` will arrive immediately after.)
+      },
+    )
     s.on(SERVER_EV.ROOM_ERROR, (err: { message?: string } | string) => {
-      const msg = typeof err === 'string' ? err : err?.message ?? 'Room error'
+      const msg = typeof err === 'string' ? err : (err?.message ?? 'Room error')
       setError(msg)
     })
     s.on(SERVER_EV.GAME_STARTED, (payload: { gameState: GameState }) => {
       const gs = payload?.gameState
       if (gs) {
         setGameState(gs)
-        setRoom((prev) => prev ? { ...prev, gameState: gs, started: true, phase: gs.phase } : prev)
+        setRoom((prev) =>
+          prev ? { ...prev, gameState: gs, started: true, phase: gs.phase } : prev,
+        )
       }
     })
     s.on(SERVER_EV.GAME_STATE, (state: GameState) => {
       setGameState(state)
-      setRoom((prev) => prev
-        ? { ...prev, gameState: state, phase: state.phase }
-        : prev)
+      setRoom((prev) => (prev ? { ...prev, gameState: state, phase: state.phase } : prev))
     })
     s.on(SERVER_EV.GAME_EVENT, (ev: GameEvent) => {
       setLastEvent(ev)
     })
-    s.on(SERVER_EV.GAME_OVER, (payload: { winners: number[]; players: GameState['players'] }) => {
-      // We have the full state already (last `game:state` emission). The
-      // payload is just a summary; we use it to refresh `winners`/`players`
-      // if needed.
-      setGameState((prev) => prev && payload ? { ...prev, winners: payload.winners, players: payload.players, phase: 'gameover' } : prev)
-      setRoom((prev) => prev ? { ...prev, phase: 'gameover' } : prev)
-    })
-    s.on(SERVER_EV.CHAT_MESSAGE, (msg: {
-      userId: string | null
-      username: string
-      content: string
-      timestamp: number
-    }) => {
-      setChat((prev) => [
-        ...prev,
-        {
-          id: `${msg.timestamp}-${Math.random().toString(36).slice(2, 8)}`,
-          userId: msg.userId,
-          username: msg.username,
-          content: msg.content,
-          timestamp: msg.timestamp,
-          type: 'user' as const,
-        },
-      ].slice(-200))
-    })
+    s.on(
+      SERVER_EV.GAME_OVER,
+      (payload: { winners: number[]; players: GameState['players'] }) => {
+        // We have the full state already (last `game:state` emission). The
+        // payload is just a summary; we use it to refresh `winners`/`players`
+        // if needed.
+        setGameState((prev) =>
+          prev && payload
+            ? {
+                ...prev,
+                winners: payload.winners,
+                players: payload.players,
+                phase: 'gameover',
+              }
+            : prev,
+        )
+        setRoom((prev) => (prev ? { ...prev, phase: 'gameover' } : prev))
+      },
+    )
+    s.on(
+      SERVER_EV.CHAT_MESSAGE,
+      (msg: {
+        userId: string | null
+        username: string
+        content: string
+        timestamp: number
+      }) => {
+        setChat((prev) =>
+          [
+            ...prev,
+            {
+              id: `${msg.timestamp}-${Math.random().toString(36).slice(2, 8)}`,
+              userId: msg.userId,
+              username: msg.username,
+              content: msg.content,
+              timestamp: msg.timestamp,
+              type: 'user' as const,
+            },
+          ].slice(-200),
+        )
+      },
+    )
 
     // Auto-connect if not already connected.
     if (!s.connected) s.connect()

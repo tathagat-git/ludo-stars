@@ -49,18 +49,21 @@ export function ChatPanel({ messages, onSend, disabled, className }: ChatPanelPr
   return (
     <section
       aria-label="Room chat"
-      className={cn('flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-card', className)}
+      className={cn(
+        'border-border bg-card flex min-h-0 flex-1 flex-col rounded-lg border',
+        className,
+      )}
     >
       <header className="flex items-center justify-between border-b px-3 py-2">
         <h3 className="text-sm font-semibold">Chat</h3>
-        <span className="text-xs text-muted-foreground">{messages.length}</span>
+        <span className="text-muted-foreground text-xs">{messages.length}</span>
       </header>
 
       <div ref={containerRef} className="min-h-0 flex-1">
         <ScrollArea className="h-full w-full" style={{ maxHeight: '100%' }}>
           <div className="flex flex-col gap-1.5 p-2">
             {messages.length === 0 ? (
-              <p className="px-2 py-8 text-center text-xs text-muted-foreground">
+              <p className="text-muted-foreground px-2 py-8 text-center text-xs">
                 No messages yet. Say hi 👋
               </p>
             ) : (
@@ -68,22 +71,25 @@ export function ChatPanel({ messages, onSend, disabled, className }: ChatPanelPr
                 m.type === 'system' ? (
                   <p
                     key={m.id}
-                    className="px-2 py-1 text-center text-[11px] italic text-muted-foreground"
+                    className="text-muted-foreground px-2 py-1 text-center text-[11px] italic"
                   >
                     {m.content}
                   </p>
                 ) : (
                   <div
                     key={m.id}
-                    className="flex flex-col gap-0.5 rounded-md bg-muted/40 px-2 py-1.5"
+                    className="bg-muted/40 flex flex-col gap-0.5 rounded-md px-2 py-1.5"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold">{m.username}</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <span className="text-muted-foreground text-[10px]">
+                        {new Date(m.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </span>
                     </div>
-                    <p className="break-words text-sm">{m.content}</p>
+                    <p className="text-sm break-words">{m.content}</p>
                   </div>
                 ),
               )
@@ -117,4 +123,3 @@ export function ChatPanel({ messages, onSend, disabled, className }: ChatPanelPr
 }
 
 export default ChatPanel
-

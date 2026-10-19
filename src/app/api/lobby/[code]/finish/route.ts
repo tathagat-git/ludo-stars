@@ -26,10 +26,7 @@ interface FinishBody {
   winners?: number[]
 }
 
-export async function POST(
-  req: Request,
-  ctx: { params: Promise<{ code: string }> },
-) {
+export async function POST(req: Request, ctx: { params: Promise<{ code: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -69,9 +66,7 @@ export async function POST(
   // Idempotent: already finished → just return the persisted state.
   if (game.status === 'finished') {
     return NextResponse.json({
-      game: toLobbyGameDTO(
-        game as unknown as Parameters<typeof toLobbyGameDTO>[0],
-      ),
+      game: toLobbyGameDTO(game as unknown as Parameters<typeof toLobbyGameDTO>[0]),
       alreadyFinished: true,
     })
   }
@@ -86,9 +81,7 @@ export async function POST(
   const firstWinnerSeat = winners[0]!
   const firstWinnerPlayer = game.players.find((p) => p.seat === firstWinnerSeat)
   const winnerId =
-    firstWinnerPlayer && !firstWinnerPlayer.isBot
-      ? firstWinnerPlayer.userId
-      : null
+    firstWinnerPlayer && !firstWinnerPlayer.isBot ? firstWinnerPlayer.userId : null
 
   await db.$transaction(async (tx) => {
     // 1. Update the Game row.
@@ -138,8 +131,6 @@ export async function POST(
   })
 
   return NextResponse.json({
-    game: toLobbyGameDTO(
-      refreshed as unknown as Parameters<typeof toLobbyGameDTO>[0],
-    ),
+    game: toLobbyGameDTO(refreshed as unknown as Parameters<typeof toLobbyGameDTO>[0]),
   })
 }

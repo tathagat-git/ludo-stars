@@ -71,8 +71,7 @@ export async function GET(req: Request) {
     .map((u) => ({
       ...u,
       isFriend: friendIds.has(u.id),
-      hasPendingRequest:
-        pendingOutgoing.has(u.id) || pendingIncoming.has(u.id),
+      hasPendingRequest: pendingOutgoing.has(u.id) || pendingIncoming.has(u.id),
     }))
     .slice(0, 10)
 

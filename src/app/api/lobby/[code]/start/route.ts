@@ -17,10 +17,7 @@ import { toLobbyGameDTO } from '@/lib/lobby'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(
-  _req: Request,
-  ctx: { params: Promise<{ code: string }> },
-) {
+export async function POST(_req: Request, ctx: { params: Promise<{ code: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -52,18 +49,13 @@ export async function POST(
   if (game.status === 'playing') {
     // Idempotent.
     return NextResponse.json({
-      game: toLobbyGameDTO(
-        game as unknown as Parameters<typeof toLobbyGameDTO>[0],
-      ),
+      game: toLobbyGameDTO(game as unknown as Parameters<typeof toLobbyGameDTO>[0]),
       alreadyStarted: true,
     })
   }
 
   if (game.status === 'finished') {
-    return NextResponse.json(
-      { error: 'Game has already finished' },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: 'Game has already finished' }, { status: 400 })
   }
 
   // Must have at least 2 seats filled (humans or bots).
@@ -90,8 +82,6 @@ export async function POST(
   })
 
   return NextResponse.json({
-    game: toLobbyGameDTO(
-      updated as unknown as Parameters<typeof toLobbyGameDTO>[0],
-    ),
+    game: toLobbyGameDTO(updated as unknown as Parameters<typeof toLobbyGameDTO>[0]),
   })
 }

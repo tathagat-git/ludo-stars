@@ -23,8 +23,8 @@ export const TRACK_CELLS: Cell[] = [
   { row: 12, col: 6 }, // 1
   { row: 11, col: 6 }, // 2
   { row: 10, col: 6 }, // 3
-  { row: 9, col: 6 },  // 4
-  { row: 8, col: 6 },  // 5
+  { row: 9, col: 6 }, // 4
+  { row: 8, col: 6 }, // 5
   // 6..11 — left arm BOTTOM row, going LEFT (row 8, cols 5→0)
   { row: 8, col: 5 }, // 6
   { row: 8, col: 4 }, // 7
@@ -58,7 +58,7 @@ export const TRACK_CELLS: Cell[] = [
   { row: 4, col: 8 }, // 30
   { row: 5, col: 8 }, // 31
   // 32..37 — right arm TOP row, going RIGHT (row 6, cols 9→14)
-  { row: 6, col: 9 },  // 32
+  { row: 6, col: 9 }, // 32
   { row: 6, col: 10 }, // 33
   { row: 6, col: 11 }, // 34
   { row: 6, col: 12 }, // 35
@@ -72,9 +72,9 @@ export const TRACK_CELLS: Cell[] = [
   { row: 8, col: 12 }, // 41
   { row: 8, col: 11 }, // 42
   { row: 8, col: 10 }, // 43
-  { row: 8, col: 9 },  // 44
+  { row: 8, col: 9 }, // 44
   // 45..50 — bottom arm RIGHT column, going DOWN (col 8, rows 9→14)
-  { row: 9, col: 8 },  // 45
+  { row: 9, col: 8 }, // 45
   { row: 10, col: 8 }, // 46
   { row: 11, col: 8 }, // 47
   { row: 12, col: 8 }, // 48
@@ -95,8 +95,8 @@ export const HOME_COLUMN_CELLS: Partial<Record<Color, Cell[]>> = {
     { row: 12, col: 7 }, // 101
     { row: 11, col: 7 }, // 102
     { row: 10, col: 7 }, // 103
-    { row: 9, col: 7 },  // 104
-    { row: 8, col: 7 },  // 105 (center)
+    { row: 9, col: 7 }, // 104
+    { row: 8, col: 7 }, // 105 (center)
   ],
   // Green: from (7,1) going RIGHT to (7,6)
   green: [
@@ -122,8 +122,8 @@ export const HOME_COLUMN_CELLS: Partial<Record<Color, Cell[]>> = {
     { row: 7, col: 12 }, // 101
     { row: 7, col: 11 }, // 102
     { row: 7, col: 10 }, // 103
-    { row: 7, col: 9 },  // 104
-    { row: 7, col: 8 },  // 105 (center)
+    { row: 7, col: 9 }, // 104
+    { row: 7, col: 8 }, // 105 (center)
   ],
 }
 
@@ -180,7 +180,9 @@ export const BASE_DOCKS: Record<Color, Cell[]> = {
 
 // Base region (the 5x5 colored area in each corner). Only the 4 standard
 // colors have on-grid base regions; purple & orange are rendered off-board.
-export const BASE_REGIONS: Partial<Record<Color, { row: number; col: number; color: Color }>> = {
+export const BASE_REGIONS: Partial<
+  Record<Color, { row: number; col: number; color: Color }>
+> = {
   red: { row: 11, col: 3, color: 'red' },
   green: { row: 3, col: 3, color: 'green' },
   yellow: { row: 3, col: 11, color: 'yellow' },
@@ -189,7 +191,12 @@ export const BASE_REGIONS: Partial<Record<Color, { row: number; col: number; col
 
 // Colors that render their base + home column on the 15x15 grid (the 4
 // standard corner colors). Purple & orange render off-board.
-export const ON_BOARD_COLORS: ReadonlySet<Color> = new Set<Color>(['red', 'green', 'yellow', 'blue'])
+export const ON_BOARD_COLORS: ReadonlySet<Color> = new Set<Color>([
+  'red',
+  'green',
+  'yellow',
+  'blue',
+])
 
 /// True if a color's base + home column is rendered on the 15x15 grid.
 export function isOnBoardColor(color: Color): boolean {
@@ -287,7 +294,7 @@ export const COLOR_DOT: Record<Color, string> = {
 /// Star icon position (the 4 "safe" non-start squares), for rendering a
 /// small star glyph on those cells.
 export const STAR_CELLS: Cell[] = [
-  TRACK_CELLS[8]!,  // row 8 col 3
+  TRACK_CELLS[8]!, // row 8 col 3
   TRACK_CELLS[21]!, // row 3 col 6
   TRACK_CELLS[34]!, // row 6 col 11
   TRACK_CELLS[47]!, // row 12 col 8

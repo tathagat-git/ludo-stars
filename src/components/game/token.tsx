@@ -53,7 +53,8 @@ export function Token({
         'relative grid place-items-center overflow-hidden rounded-full border-2 shadow-md transition-shadow',
         'border-white',
         COLOR_BG[color],
-        clickable && 'cursor-pointer ring-2 ring-offset-1 ring-emerald-400/70 hover:ring-emerald-400',
+        clickable &&
+          'cursor-pointer ring-2 ring-emerald-400/70 ring-offset-1 hover:ring-emerald-400',
         isCurrent && !isLegal && 'ring-2 ring-amber-400 ring-offset-1',
         isLegal && 'ring-2 ring-emerald-400 ring-offset-1',
       )}

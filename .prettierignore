@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+build
+dist
+bun.lock
+dev.log
+server.log
+mini-services/game-service/service.log
+examples
+skills
+prisma/migrations
+public
+next-env.d.ts
+*.db
+*.db-journal

@@ -1,18 +1,18 @@
-"use client";
+'use client'
 
-import * as React from "react";
+import * as React from 'react'
 
-import { TopNav } from "@/components/dashboard/top-nav";
-import { StatsCards } from "@/components/dashboard/stats-cards";
-import { Footer } from "@/components/ui/footer";
-import { CreateGameDialog } from "@/components/lobby/create-game-dialog";
-import { JoinGameDialog } from "@/components/lobby/join-game-dialog";
-import { GameHistory } from "@/components/lobby/game-history";
-import { QuickPlay } from "@/components/lobby/quick-play";
-import { FriendsPanel } from "@/components/friends/friends-panel";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { DoorOpen, LogIn } from "lucide-react";
+import { TopNav } from '@/components/dashboard/top-nav'
+import { StatsCards } from '@/components/dashboard/stats-cards'
+import { Footer } from '@/components/ui/footer'
+import { CreateGameDialog } from '@/components/lobby/create-game-dialog'
+import { JoinGameDialog } from '@/components/lobby/join-game-dialog'
+import { GameHistory } from '@/components/lobby/game-history'
+import { QuickPlay } from '@/components/lobby/quick-play'
+import { FriendsPanel } from '@/components/friends/friends-panel'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { DoorOpen, LogIn } from 'lucide-react'
 
 /**
  * Dashboard user prop. The server page passes session.user augmented with
@@ -20,18 +20,18 @@ import { DoorOpen, LogIn } from "lucide-react";
  * through next-auth's session callback).
  */
 export interface DashboardUser {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  username?: string | null;
-  wins?: number;
-  losses?: number;
-  gamesPlayed?: number;
+  id: string
+  name?: string | null
+  email?: string | null
+  image?: string | null
+  username?: string | null
+  wins?: number
+  losses?: number
+  gamesPlayed?: number
 }
 
 export interface DashboardProps {
-  user: DashboardUser;
+  user: DashboardUser
 }
 
 /**
@@ -51,10 +51,10 @@ export interface DashboardProps {
  *   └─────────────────────────────── Footer ──────────────────────────────┘
  */
 export function Dashboard({ user }: DashboardProps) {
-  const username = user.username || user.name || "Player";
-  const wins = user.wins ?? 0;
-  const losses = user.losses ?? 0;
-  const gamesPlayed = user.gamesPlayed ?? 0;
+  const username = user.username || user.name || 'Player'
+  const wins = user.wins ?? 0
+  const losses = user.losses ?? 0
+  const gamesPlayed = user.gamesPlayed ?? 0
 
   return (
     <div className="flex min-h-screen flex-1 flex-col">
@@ -71,20 +71,15 @@ export function Dashboard({ user }: DashboardProps) {
               id="welcome-heading"
               className="text-2xl font-bold tracking-tight sm:text-3xl"
             >
-              Welcome back,{" "}
-              <span className="text-primary">{username}</span>!
+              Welcome back, <span className="text-primary">{username}</span>!
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-muted-foreground mt-1 text-sm">
               Pick up where you left off, or start a new Ludo match.
             </p>
           </div>
         </section>
 
-        <StatsCards
-          wins={wins}
-          losses={losses}
-          gamesPlayed={gamesPlayed}
-        />
+        <StatsCards wins={wins} losses={losses} gamesPlayed={gamesPlayed} />
 
         {/* ---------------- Main grid ---------------- */}
         <div className="mt-6 grid grid-cols-1 gap-6 sm:mt-8 lg:grid-cols-3">
@@ -106,7 +101,7 @@ export function Dashboard({ user }: DashboardProps) {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                <CardTitle className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
                   Multiplayer
                 </CardTitle>
               </CardHeader>
@@ -114,11 +109,10 @@ export function Dashboard({ user }: DashboardProps) {
                 <CreateGameDialog />
                 <JoinGameDialog />
 
-                <div className="mt-1 flex items-center gap-2 rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                <div className="border-border bg-muted/30 text-muted-foreground mt-1 flex items-center gap-2 rounded-md border border-dashed p-3 text-xs">
                   <DoorOpen className="h-4 w-4 shrink-0" aria-hidden />
                   <span>
-                    Share your room code with friends, or paste one here to
-                    join.
+                    Share your room code with friends, or paste one here to join.
                   </span>
                 </div>
 
@@ -140,7 +134,7 @@ export function Dashboard({ user }: DashboardProps) {
 
       <Footer />
     </div>
-  );
+  )
 }
 
-export default Dashboard;
+export default Dashboard

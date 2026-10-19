@@ -36,7 +36,7 @@ export function DirectionPicker({
         className="w-56 p-3"
         aria-label="Choose move direction"
       >
-        <p className="mb-2 text-center text-xs font-medium text-muted-foreground">
+        <p className="text-muted-foreground mb-2 text-center text-xs font-medium">
           Move {dice} step{dice === 1 ? '' : 's'} — choose direction
         </p>
         <div className="flex flex-col gap-2">

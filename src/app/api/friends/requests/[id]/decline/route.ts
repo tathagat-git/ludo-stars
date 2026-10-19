@@ -9,7 +9,7 @@ import { db } from '@/lib/db'
  */
 export async function POST(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
@@ -29,13 +29,13 @@ export async function POST(
   if (request.toId !== userId) {
     return NextResponse.json(
       { error: 'This request is not addressed to you' },
-      { status: 403 }
+      { status: 403 },
     )
   }
   if (request.status !== 'pending') {
     return NextResponse.json(
       { error: `Request is already ${request.status}` },
-      { status: 409 }
+      { status: 409 },
     )
   }
 

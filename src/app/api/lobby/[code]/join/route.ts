@@ -18,10 +18,7 @@ import { SEAT_TO_PLAYER_FIELD, toLobbyGameDTO } from '@/lib/lobby'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(
-  _req: Request,
-  ctx: { params: Promise<{ code: string }> },
-) {
+export async function POST(_req: Request, ctx: { params: Promise<{ code: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -44,22 +41,15 @@ export async function POST(
   }
 
   if (game.status !== 'waiting') {
-    return NextResponse.json(
-      { error: 'Game is no longer joinable' },
-      { status: 400 },
-    )
+    return NextResponse.json({ error: 'Game is no longer joinable' }, { status: 400 })
   }
 
   // Already joined?
-  const existing = game.players.find(
-    (p) => !p.isBot && p.userId === userId,
-  )
+  const existing = game.players.find((p) => !p.isBot && p.userId === userId)
   if (existing) {
     // Idempotent: just return the current state.
     return NextResponse.json({
-      game: toLobbyGameDTO(
-        game as unknown as Parameters<typeof toLobbyGameDTO>[0],
-      ),
+      game: toLobbyGameDTO(game as unknown as Parameters<typeof toLobbyGameDTO>[0]),
       alreadyJoined: true,
     })
   }
@@ -85,10 +75,7 @@ export async function POST(
   }
 
   const playerField = SEAT_TO_PLAYER_FIELD[nextSeat] as
-    | 'player1Id'
-    | 'player2Id'
-    | 'player3Id'
-    | 'player4Id'
+    'player1Id' | 'player2Id' | 'player3Id' | 'player4Id'
 
   // Transaction: create GamePlayer + set playerNId on Game.
   const updated = await db.$transaction(async (tx) => {
@@ -114,8 +101,6 @@ export async function POST(
   })
 
   return NextResponse.json({
-    game: toLobbyGameDTO(
-      updated as unknown as Parameters<typeof toLobbyGameDTO>[0],
-    ),
+    game: toLobbyGameDTO(updated as unknown as Parameters<typeof toLobbyGameDTO>[0]),
   })
 }

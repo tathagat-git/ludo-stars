@@ -63,15 +63,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const toUserId =
-    typeof body.toUserId === 'string' ? body.toUserId.trim() : ''
+  const toUserId = typeof body.toUserId === 'string' ? body.toUserId.trim() : ''
   if (!toUserId) {
     return NextResponse.json({ error: 'toUserId is required' }, { status: 400 })
   }
   if (toUserId === fromId) {
     return NextResponse.json(
       { error: 'Cannot send a friend request to yourself' },
-      { status: 400 }
+      { status: 400 },
     )
   }
 
@@ -97,7 +96,7 @@ export async function POST(req: Request) {
   if (existingFriendship) {
     return NextResponse.json(
       { error: 'You are already friends with this user' },
-      { status: 409 }
+      { status: 409 },
     )
   }
 
@@ -146,7 +145,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       { error: 'A friend request already exists between you and this user' },
-      { status: 409 }
+      { status: 409 },
     )
   }
 

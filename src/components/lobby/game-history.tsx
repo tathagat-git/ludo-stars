@@ -7,11 +7,7 @@
 // an empty state for new users.
 
 import * as React from 'react'
-import {
-  QueryClient,
-  QueryClientProvider,
-  useQuery,
-} from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import {
   Trophy,
   Skull,
@@ -21,6 +17,7 @@ import {
   History,
   Loader2,
   AlertCircle,
+  Dices,
 } from 'lucide-react'
 
 import {
@@ -32,6 +29,7 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { CreateGameDialog } from '@/components/lobby/create-game-dialog'
 import { cn } from '@/lib/utils'
 
 interface LobbyPlayerDTO {
@@ -96,9 +94,7 @@ interface GameRowProps {
 }
 
 function GameRow({ game, currentUserId }: GameRowProps) {
-  const me = game.players.find(
-    (p) => !p.isBot && p.userId && p.userId === currentUserId,
-  )
+  const me = game.players.find((p) => !p.isBot && p.userId && p.userId === currentUserId)
   const isFinished = game.status === 'finished'
   const isPlaying = game.status === 'playing'
 
@@ -117,10 +113,10 @@ function GameRow({ game, currentUserId }: GameRowProps) {
   const winner = game.players.find((p) => p.finalRank === 1)
 
   return (
-    <li className="flex flex-col gap-2 border-b border-border px-3 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+    <li className="border-border flex flex-col gap-2 border-b px-3 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs font-medium tracking-wider text-muted-foreground">
+          <span className="text-muted-foreground font-mono text-xs font-medium tracking-wider">
             {game.code}
           </span>
           <Badge variant="secondary" className="capitalize">
@@ -128,10 +124,7 @@ function GameRow({ game, currentUserId }: GameRowProps) {
           </Badge>
           <Badge
             variant="outline"
-            className={cn(
-              'capitalize',
-              isPlaying && 'border-primary/40 text-primary',
-            )}
+            className={cn('capitalize', isPlaying && 'border-primary/40 text-primary')}
           >
             {game.status}
           </Badge>
@@ -151,7 +144,7 @@ function GameRow({ game, currentUserId }: GameRowProps) {
             </Badge>
           )}
         </div>
-        <div className="mt-1 text-xs text-muted-foreground">
+        <div className="text-muted-foreground mt-1 text-xs">
           {formatDate(game.createdAt)}
           {winner ? (
             <span className="ml-2">
@@ -164,7 +157,7 @@ function GameRow({ game, currentUserId }: GameRowProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="text-muted-foreground flex items-center gap-3 text-xs">
         <span className="inline-flex items-center gap-1" title="Players">
           <Users className="size-3.5" />
           {game.playerCount}/{game.maxPlayers}
@@ -198,39 +191,44 @@ function GameHistoryImpl() {
           <History className="size-4" />
           Recent games
         </CardTitle>
-        <CardDescription className="text-xs">
-          Your last 20 Ludo games.
-        </CardDescription>
+        <CardDescription className="text-xs">Your last 20 Ludo games.</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
         {query.isLoading ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex items-center justify-center gap-2 py-12 text-sm">
             <Loader2 className="size-4 animate-spin" />
             Loading…
           </div>
         ) : query.isError ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-sm text-muted-foreground">
-            <AlertCircle className="size-6 text-destructive" />
+          <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-12 text-center text-sm">
+            <AlertCircle className="text-destructive size-6" />
             <span>Failed to load game history.</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => query.refetch()}
-            >
+            <Button variant="outline" size="sm" onClick={() => query.refetch()}>
               Retry
             </Button>
           </div>
         ) : query.data && query.data.length > 0 ? (
-          <ul className="max-h-96 overflow-y-auto lobby-scroll">
+          <ul className="lobby-scroll max-h-96 overflow-y-auto">
             {query.data.map((g) => (
               <GameRow key={g.id} game={g} />
             ))}
           </ul>
         ) : (
-          <div className="flex flex-col items-center justify-center gap-2 px-4 py-12 text-center text-sm text-muted-foreground">
-            <Trophy className="size-8 text-muted-foreground/50" />
-            <span>No games yet.</span>
-            <span>Create or join a game to get started!</span>
+          <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center text-sm">
+            <Trophy className="text-muted-foreground/50 size-8" />
+            <p className="font-medium">No games yet — start playing!</p>
+            <p className="text-muted-foreground max-w-[20rem] text-xs">
+              Create a private room to invite friends, or jump into a quick match against
+              bots.
+            </p>
+            <CreateGameDialog
+              trigger={
+                <Button size="sm" className="mt-1">
+                  <Dices className="size-4" />
+                  Create a game
+                </Button>
+              }
+            />
           </div>
         )}
       </CardContent>

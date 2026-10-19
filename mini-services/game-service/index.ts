@@ -26,11 +26,7 @@ import {
   type Color,
   type GameEvent,
 } from '../../src/lib/ludo/engine.ts'
-import {
-  chooseBotMove,
-  randomBotName,
-  botThinkDelay,
-} from '../../src/lib/ludo/bot.ts'
+import { chooseBotMove, randomBotName, botThinkDelay } from '../../src/lib/ludo/bot.ts'
 
 // ----------------------------------------------------------------------------
 // Constants
@@ -142,7 +138,7 @@ function emitGameState(room: RoomState) {
 }
 
 function roomSnapshot(room: RoomState, forSocketId?: string) {
-  const yourSeat = forSocketId ? seatOfSocket(room, forSocketId)?.seat ?? null : null
+  const yourSeat = forSocketId ? (seatOfSocket(room, forSocketId)?.seat ?? null) : null
   return {
     id: room.id,
     code: room.code,
@@ -221,7 +217,12 @@ function createRoom(opts: {
   return room
 }
 
-function addPlayerToRoom(room: RoomState, userId: string, name: string, socketId: string): SeatState {
+function addPlayerToRoom(
+  room: RoomState,
+  userId: string,
+  name: string,
+  socketId: string,
+): SeatState {
   // If user already has a seat in this room (e.g., reconnecting), reuse it.
   const existing = room.seats.find((s) => s.userId === userId && !s.isBot)
   if (existing) {
@@ -321,7 +322,9 @@ function startGame(room: RoomState): { ok: boolean; error?: string } {
   if (filled.length < 2) return { ok: false, error: 'Need at least 2 players to start' }
 
   // Re-assign seat indices 0..N-1 (humans first, then bots).
-  filled.forEach((s, i) => { s.seat = i })
+  filled.forEach((s, i) => {
+    s.seat = i
+  })
   room.seats = filled
   room.maxPlayers = filled.length
   room.botCount = bots.length
@@ -339,7 +342,7 @@ function startGame(room: RoomState): { ok: boolean; error?: string } {
 
   console.log(
     `[room ${room.code}] game started — ${players.length} players ` +
-    `(${humans.length} human, ${bots.length} bot)`
+      `(${humans.length} human, ${bots.length} bot)`,
   )
 
   // Broadcast start + initial state.
@@ -367,7 +370,9 @@ function endGame(room: RoomState) {
     if (!seat.socketId) continue
     io.to(seat.socketId).emit('game:over', payload)
   }
-  console.log(`[room ${room.code}] game over — winners: ${room.gameState.winners.join(',')}`)
+  console.log(
+    `[room ${room.code}] game over — winners: ${room.gameState.winners.join(',')}`,
+  )
 }
 
 /**
@@ -402,7 +407,6 @@ function scheduleBotTurn(room: RoomState) {
 
     if (room.gameState.phase === 'roll') {
       room.gameState = applyRoll(room.gameState)
-      console.log(`[room ${room.code}] BOT seat ${curSeat} (${curSeatState.name}) rolled ${room.gameState.dice} → phase ${room.gameState.phase}, legal ${room.gameState.legalMoves.length}`)
       emitGameState(room)
       if (room.gameState.phase === 'gameover') {
         endGame(room)
@@ -413,7 +417,6 @@ function scheduleBotTurn(room: RoomState) {
       const mv = chooseBotMove(room.gameState)
       if (mv) {
         room.gameState = applyMove(room.gameState, mv.tokenId, mv.direction)
-        console.log(`[room ${room.code}] BOT seat ${curSeat} (${curSeatState.name}) moved token ${mv.tokenId} ${mv.direction} → phase ${room.gameState.phase}, next seat ${room.gameState.currentSeat}`)
       } else {
         // Safety net — engine should already auto-pass when no moves,
         // but if we somehow get here, pass the turn explicitly.
@@ -447,9 +450,7 @@ function forfeitSeat(room: RoomState, seatIdx: number) {
     // Mark the player as finished-last (rank = maxPlayers, last place).
     const rank = room.gameState.players.length
     room.gameState.players = room.gameState.players.map((p) =>
-      p.seat === seatIdx
-        ? { ...p, finishedAt: Date.now(), rank }
-        : p
+      p.seat === seatIdx ? { ...p, finishedAt: Date.now(), rank } : p,
     )
   }
 
@@ -494,7 +495,10 @@ function handleDisconnect(socket: Socket) {
     } else if (!seat.forfeitTimer) {
       // If it's the disconnected player's turn, auto-pass so the game
       // doesn't stall waiting for them.
-      if (room.gameState.currentSeat === seat.seat && room.gameState.phase !== 'gameover') {
+      if (
+        room.gameState.currentSeat === seat.seat &&
+        room.gameState.phase !== 'gameover'
+      ) {
         room.gameState = passTurn(room.gameState)
         emitGameState(room)
         emitRoomState(room)
@@ -528,7 +532,9 @@ function handleDisconnect(socket: Socket) {
   const humansConnected = humans.filter((s) => s.socketId !== null)
   if (humans.length > 0 && humansConnected.length === 0) {
     if (room.gameState && room.gameState.phase !== 'gameover' && !room.endGameTimer) {
-      console.log(`[room ${room.code}] all humans disconnected — starting ${ALL_HUMANS_DISCONNECT_DESTROY_MS}ms end-game timer`)
+      console.log(
+        `[room ${room.code}] all humans disconnected — starting ${ALL_HUMANS_DISCONNECT_DESTROY_MS}ms end-game timer`,
+      )
       room.endGameTimer = setTimeout(() => {
         const r = rooms.get(room.id)
         if (!r) return
@@ -589,86 +595,20 @@ io.on('connection', (socket: Socket) => {
   console.log(`[socket] connected: ${socket.id}`)
 
   // ── room:create ─────────────────────────────────────────────────────────
-  socket.on('room:create', (payload: {
-    userId: string
-    username: string
-    mode?: GameMode
-    maxPlayers?: number
-  }) => {
-    if (!payload?.userId || !payload?.username) {
-      return emitRoomError(socket, 'Missing userId/username')
-    }
-    // If user is already in another room, leave it first.
-    const prev = sockets.get(socket.id)
-    if (prev && rooms.has(prev.roomId)) {
-      const prevRoom = rooms.get(prev.roomId)!
-      const prevSeat = prevRoom.seats.find((s) => s.socketId === socket.id)
-      if (prevSeat) {
-        prevSeat.socketId = null
-        if (!prevRoom.gameState) removeSeat(prevRoom, prevSeat.seat)
-        emitRoomState(prevRoom)
+  socket.on(
+    'room:create',
+    (payload: {
+      userId: string
+      username: string
+      mode?: GameMode
+      maxPlayers?: number
+    }) => {
+      if (!payload?.userId || !payload?.username) {
+        return emitRoomError(socket, 'Missing userId/username')
       }
-    }
-
-    const mode = payload.mode === 'classic' ? 'classic' : 'twist'
-    const maxPlayers = clampMaxPlayers(payload.maxPlayers)
-    const room = createRoom({ userId: payload.userId, mode, maxPlayers })
-    sockets.set(socket.id, { userId: payload.userId, roomId: room.id })
-    const seat = addPlayerToRoom(room, payload.userId, payload.username, socket.id)
-
-    socket.emit('room:joined', {
-      roomId: room.id,
-      code: room.code,
-      seat: seat.seat,
-      mode: room.mode,
-      maxPlayers: room.maxPlayers,
-    })
-    emitRoomState(room)
-    console.log(`[room ${room.code}] ${payload.username} created & joined (seat ${seat.seat})`)
-  })
-
-  // ── room:join ───────────────────────────────────────────────────────────
-  socket.on('room:join', (payload: {
-    code: string
-    userId: string
-    username: string
-    mode?: GameMode
-    maxPlayers?: number
-  }) => {
-    if (!payload?.code || !payload?.userId || !payload?.username) {
-      return emitRoomError(socket, 'Missing code/userId/username')
-    }
-    const code = payload.code.toUpperCase()
-    console.log(`[room:join] ${payload.username} → ${code} (mode=${payload.mode}, maxPlayers=${payload.maxPlayers})`)
-
-    // Leave any previous room.
-    const prev = sockets.get(socket.id)
-    if (prev) {
-      if (prev.roomId === code) {
-        // Already in this room — just refresh socket binding (reconnect case).
-        const r = rooms.get(code)
-        if (r) {
-          const existing = r.seats.find((s) => s.userId === payload.userId && !s.isBot)
-          if (existing) {
-            existing.socketId = socket.id
-            existing.disconnected = false
-            sockets.set(socket.id, { userId: payload.userId, roomId: r.id })
-            socket.emit('room:joined', {
-              roomId: r.id,
-              code: r.code,
-              seat: existing.seat,
-              mode: r.mode,
-              maxPlayers: r.maxPlayers,
-            })
-            emitRoomState(r)
-            if (r.gameState) {
-              socket.emit('game:started', { gameState: r.gameState })
-              socket.emit('game:state', r.gameState)
-            }
-            return
-          }
-        }
-      } else if (rooms.has(prev.roomId)) {
+      // If user is already in another room, leave it first.
+      const prev = sockets.get(socket.id)
+      if (prev && rooms.has(prev.roomId)) {
         const prevRoom = rooms.get(prev.roomId)!
         const prevSeat = prevRoom.seats.find((s) => s.socketId === socket.id)
         if (prevSeat) {
@@ -677,75 +617,152 @@ io.on('connection', (socket: Socket) => {
           emitRoomState(prevRoom)
         }
       }
-    }
 
-    let room = rooms.get(code)
-    if (!room) {
-      // Create a new room with this code (host = joining user).
       const mode = payload.mode === 'classic' ? 'classic' : 'twist'
       const maxPlayers = clampMaxPlayers(payload.maxPlayers)
-      room = createRoom({ code, userId: payload.userId, mode, maxPlayers })
-    } else if (room.gameState) {
-      // Game is in progress — only allow reconnection if this user already
-      // has a seat (e.g., recovering from a disconnect / StrictMode remount).
-      const existingSeat = room.seats.find(
-        (s) => s.userId === payload.userId && !s.isBot,
-      )
-      if (!existingSeat) {
-        return emitRoomError(socket, 'Game already in progress')
-      }
-      // Reconnect path: bind the new socket to the existing seat.
-      existingSeat.socketId = socket.id
-      existingSeat.disconnected = false
-      if (existingSeat.forfeitTimer) {
-        clearTimeout(existingSeat.forfeitTimer)
-        existingSeat.forfeitTimer = null
-        console.log(`[room ${room.code}] ${payload.username} reconnected mid-game — forfeit cancelled`)
-      }
-      // Cancel any pending end-game timer (all-humans-disconnected).
-      if (room.endGameTimer) {
-        clearTimeout(room.endGameTimer)
-        room.endGameTimer = null
-        console.log(`[room ${room.code}] ${payload.username} reconnected — end-game timer cancelled`)
-      }
+      const room = createRoom({ userId: payload.userId, mode, maxPlayers })
       sockets.set(socket.id, { userId: payload.userId, roomId: room.id })
+      const seat = addPlayerToRoom(room, payload.userId, payload.username, socket.id)
+
       socket.emit('room:joined', {
         roomId: room.id,
         code: room.code,
-        seat: existingSeat.seat,
+        seat: seat.seat,
         mode: room.mode,
         maxPlayers: room.maxPlayers,
       })
       emitRoomState(room)
-      socket.emit('game:started', { gameState: room.gameState })
-      socket.emit('game:state', room.gameState)
-      return
-    }
+      console.log(
+        `[room ${room.code}] ${payload.username} created & joined (seat ${seat.seat})`,
+      )
+    },
+  )
 
-    // Check for full room.
-    if (nextFreeSeat(room) === -1) {
-      const existing = room.seats.find((s) => s.userId === payload.userId && !s.isBot)
-      if (!existing) return emitRoomError(socket, 'Room is full')
-    }
+  // ── room:join ───────────────────────────────────────────────────────────
+  socket.on(
+    'room:join',
+    (payload: {
+      code: string
+      userId: string
+      username: string
+      mode?: GameMode
+      maxPlayers?: number
+    }) => {
+      if (!payload?.code || !payload?.userId || !payload?.username) {
+        return emitRoomError(socket, 'Missing code/userId/username')
+      }
+      const code = payload.code.toUpperCase()
 
-    sockets.set(socket.id, { userId: payload.userId, roomId: room.id })
-    let seat: SeatState
-    try {
-      seat = addPlayerToRoom(room, payload.userId, payload.username, socket.id)
-    } catch (e: any) {
-      return emitRoomError(socket, e?.message ?? 'Failed to join room')
-    }
+      // Leave any previous room.
+      const prev = sockets.get(socket.id)
+      if (prev) {
+        if (prev.roomId === code) {
+          // Already in this room — just refresh socket binding (reconnect case).
+          const r = rooms.get(code)
+          if (r) {
+            const existing = r.seats.find((s) => s.userId === payload.userId && !s.isBot)
+            if (existing) {
+              existing.socketId = socket.id
+              existing.disconnected = false
+              sockets.set(socket.id, { userId: payload.userId, roomId: r.id })
+              socket.emit('room:joined', {
+                roomId: r.id,
+                code: r.code,
+                seat: existing.seat,
+                mode: r.mode,
+                maxPlayers: r.maxPlayers,
+              })
+              emitRoomState(r)
+              if (r.gameState) {
+                socket.emit('game:started', { gameState: r.gameState })
+                socket.emit('game:state', r.gameState)
+              }
+              return
+            }
+          }
+        } else if (rooms.has(prev.roomId)) {
+          const prevRoom = rooms.get(prev.roomId)!
+          const prevSeat = prevRoom.seats.find((s) => s.socketId === socket.id)
+          if (prevSeat) {
+            prevSeat.socketId = null
+            if (!prevRoom.gameState) removeSeat(prevRoom, prevSeat.seat)
+            emitRoomState(prevRoom)
+          }
+        }
+      }
 
-    socket.emit('room:joined', {
-      roomId: room.id,
-      code: room.code,
-      seat: seat.seat,
-      mode: room.mode,
-      maxPlayers: room.maxPlayers,
-    })
-    emitRoomState(room)
-    console.log(`[room ${room.code}] ${payload.username} joined (seat ${seat.seat})`)
-  })
+      let room = rooms.get(code)
+      if (!room) {
+        // Create a new room with this code (host = joining user).
+        const mode = payload.mode === 'classic' ? 'classic' : 'twist'
+        const maxPlayers = clampMaxPlayers(payload.maxPlayers)
+        room = createRoom({ code, userId: payload.userId, mode, maxPlayers })
+      } else if (room.gameState) {
+        // Game is in progress — only allow reconnection if this user already
+        // has a seat (e.g., recovering from a disconnect / StrictMode remount).
+        const existingSeat = room.seats.find(
+          (s) => s.userId === payload.userId && !s.isBot,
+        )
+        if (!existingSeat) {
+          return emitRoomError(socket, 'Game already in progress')
+        }
+        // Reconnect path: bind the new socket to the existing seat.
+        existingSeat.socketId = socket.id
+        existingSeat.disconnected = false
+        if (existingSeat.forfeitTimer) {
+          clearTimeout(existingSeat.forfeitTimer)
+          existingSeat.forfeitTimer = null
+          console.log(
+            `[room ${room.code}] ${payload.username} reconnected mid-game — forfeit cancelled`,
+          )
+        }
+        // Cancel any pending end-game timer (all-humans-disconnected).
+        if (room.endGameTimer) {
+          clearTimeout(room.endGameTimer)
+          room.endGameTimer = null
+          console.log(
+            `[room ${room.code}] ${payload.username} reconnected — end-game timer cancelled`,
+          )
+        }
+        sockets.set(socket.id, { userId: payload.userId, roomId: room.id })
+        socket.emit('room:joined', {
+          roomId: room.id,
+          code: room.code,
+          seat: existingSeat.seat,
+          mode: room.mode,
+          maxPlayers: room.maxPlayers,
+        })
+        emitRoomState(room)
+        socket.emit('game:started', { gameState: room.gameState })
+        socket.emit('game:state', room.gameState)
+        return
+      }
+
+      // Check for full room.
+      if (nextFreeSeat(room) === -1) {
+        const existing = room.seats.find((s) => s.userId === payload.userId && !s.isBot)
+        if (!existing) return emitRoomError(socket, 'Room is full')
+      }
+
+      sockets.set(socket.id, { userId: payload.userId, roomId: room.id })
+      let seat: SeatState
+      try {
+        seat = addPlayerToRoom(room, payload.userId, payload.username, socket.id)
+      } catch (e: any) {
+        return emitRoomError(socket, e?.message ?? 'Failed to join room')
+      }
+
+      socket.emit('room:joined', {
+        roomId: room.id,
+        code: room.code,
+        seat: seat.seat,
+        mode: room.mode,
+        maxPlayers: room.maxPlayers,
+      })
+      emitRoomState(room)
+      console.log(`[room ${room.code}] ${payload.username} joined (seat ${seat.seat})`)
+    },
+  )
 
   // ── room:leave ──────────────────────────────────────────────────────────
   socket.on('room:leave', () => {
@@ -787,7 +804,8 @@ io.on('connection', (socket: Socket) => {
     if (!binding) return emitRoomError(socket, 'Not in a room')
     const room = rooms.get(binding.roomId)
     if (!room) return
-    if (room.hostUserId !== binding.userId) return emitRoomError(socket, 'Only host can add bots')
+    if (room.hostUserId !== binding.userId)
+      return emitRoomError(socket, 'Only host can add bots')
     if (room.gameState) return emitRoomError(socket, 'Game already started')
     if (nextFreeSeat(room) === -1) return emitRoomError(socket, 'Room is full')
     const bot = addBotToRoom(room)
@@ -802,7 +820,8 @@ io.on('connection', (socket: Socket) => {
     if (!binding) return emitRoomError(socket, 'Not in a room')
     const room = rooms.get(binding.roomId)
     if (!room) return
-    if (room.hostUserId !== binding.userId) return emitRoomError(socket, 'Only host can remove bots')
+    if (room.hostUserId !== binding.userId)
+      return emitRoomError(socket, 'Only host can remove bots')
     if (room.gameState) return emitRoomError(socket, 'Game already started')
     const removed = removeLastBot(room)
     if (!removed) return emitRoomError(socket, 'No bots to remove')
@@ -816,7 +835,8 @@ io.on('connection', (socket: Socket) => {
     if (!binding) return emitRoomError(socket, 'Not in a room')
     const room = rooms.get(binding.roomId)
     if (!room) return
-    if (room.hostUserId !== binding.userId) return emitRoomError(socket, 'Only host can start')
+    if (room.hostUserId !== binding.userId)
+      return emitRoomError(socket, 'Only host can start')
     const result = startGame(room)
     if (!result.ok) return emitRoomError(socket, result.error ?? 'Cannot start game')
   })
@@ -835,9 +855,7 @@ io.on('connection', (socket: Socket) => {
       return emitRoomError(socket, 'Not your turn')
     }
 
-    const before = room.gameState.dice
     room.gameState = applyRoll(room.gameState)
-    console.log(`[room ${room.code}] seat ${seat.seat} (${seat.name}) rolled ${room.gameState.dice} (was ${before}) → phase ${room.gameState.phase}, next seat ${room.gameState.currentSeat}, legal ${room.gameState.legalMoves.length}`)
     emitGameState(room)
     emitRoomState(room)
 
@@ -849,38 +867,40 @@ io.on('connection', (socket: Socket) => {
   })
 
   // ── game:move ───────────────────────────────────────────────────────────
-  socket.on('game:move', (payload: { tokenId: number; direction: 'forward' | 'backward' }) => {
-    const binding = sockets.get(socket.id)
-    if (!binding) return emitRoomError(socket, 'Not in a room')
-    const room = rooms.get(binding.roomId)
-    if (!room || !room.gameState) return emitRoomError(socket, 'No active game')
-    const seat = room.seats.find((s) => s.socketId === socket.id)
-    if (!seat || seat.isBot) return emitRoomError(socket, 'Bots cannot be controlled')
+  socket.on(
+    'game:move',
+    (payload: { tokenId: number; direction: 'forward' | 'backward' }) => {
+      const binding = sockets.get(socket.id)
+      if (!binding) return emitRoomError(socket, 'Not in a room')
+      const room = rooms.get(binding.roomId)
+      if (!room || !room.gameState) return emitRoomError(socket, 'No active game')
+      const seat = room.seats.find((s) => s.socketId === socket.id)
+      if (!seat || seat.isBot) return emitRoomError(socket, 'Bots cannot be controlled')
 
-    if (!payload || typeof payload.tokenId !== 'number' || !payload.direction) {
-      return emitRoomError(socket, 'Invalid move payload')
-    }
-    if (room.gameState.phase !== 'move') return emitRoomError(socket, 'Cannot move now')
-    if (room.gameState.currentSeat !== seat.seat) {
-      return emitRoomError(socket, 'Not your turn')
-    }
-    // Validate the move is legal.
-    const legal = room.gameState.legalMoves.find(
-      (m) => m.tokenId === payload.tokenId && m.direction === payload.direction,
-    )
-    if (!legal) return emitRoomError(socket, 'Illegal move')
+      if (!payload || typeof payload.tokenId !== 'number' || !payload.direction) {
+        return emitRoomError(socket, 'Invalid move payload')
+      }
+      if (room.gameState.phase !== 'move') return emitRoomError(socket, 'Cannot move now')
+      if (room.gameState.currentSeat !== seat.seat) {
+        return emitRoomError(socket, 'Not your turn')
+      }
+      // Validate the move is legal.
+      const legal = room.gameState.legalMoves.find(
+        (m) => m.tokenId === payload.tokenId && m.direction === payload.direction,
+      )
+      if (!legal) return emitRoomError(socket, 'Illegal move')
 
-    room.gameState = applyMove(room.gameState, payload.tokenId, payload.direction)
-    console.log(`[room ${room.code}] seat ${seat.seat} (${seat.name}) moved token ${payload.tokenId} ${payload.direction} → phase ${room.gameState.phase}, next seat ${room.gameState.currentSeat}`)
-    emitGameState(room)
-    emitRoomState(room)
+      room.gameState = applyMove(room.gameState, payload.tokenId, payload.direction)
+      emitGameState(room)
+      emitRoomState(room)
 
-    if (room.gameState.phase === 'gameover') {
-      endGame(room)
-      return
-    }
-    scheduleBotTurn(room)
-  })
+      if (room.gameState.phase === 'gameover') {
+        endGame(room)
+        return
+      }
+      scheduleBotTurn(room)
+    },
+  )
 
   // ── game:forfeit ───────────────────────────────────────────────────────
   socket.on('game:forfeit', () => {

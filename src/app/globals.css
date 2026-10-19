@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -88,7 +88,7 @@
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
   /* Slightly brighter red for dark mode contrast. */
-  --primary: oklch(0.65 0.20 25);
+  --primary: oklch(0.65 0.2 25);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -99,20 +99,20 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.65 0.20 25);
-  --chart-1: oklch(0.65 0.20 25);
+  --ring: oklch(0.65 0.2 25);
+  --chart-1: oklch(0.65 0.2 25);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.65 0.20 25);
+  --sidebar-primary: oklch(0.65 0.2 25);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.65 0.20 25);
+  --sidebar-ring: oklch(0.65 0.2 25);
 }
 
 @layer base {
@@ -163,8 +163,8 @@
   .bg-ludo-hero {
     background-image:
       radial-gradient(circle at 15% 20%, rgb(239 68 68 / 0.18), transparent 45%),
-      radial-gradient(circle at 85% 15%, rgb(250 204 21 / 0.20), transparent 45%),
+      radial-gradient(circle at 85% 15%, rgb(250 204 21 / 0.2), transparent 45%),
       radial-gradient(circle at 80% 85%, rgb(34 197 94 / 0.18), transparent 45%),
-      radial-gradient(circle at 20% 80%, rgb(34 197 94 / 0.10), transparent 50%);
+      radial-gradient(circle at 20% 80%, rgb(34 197 94 / 0.1), transparent 50%);
   }
 }
