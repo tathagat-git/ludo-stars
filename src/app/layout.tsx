@@ -4,6 +4,7 @@ import './globals.css'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Toaster2 } from '@/components/ui/sonner'
 import { AppProviders } from '@/components/app-providers'
+import { RuntimeEnvScript } from '@/components/runtime-env-script'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -56,6 +57,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Injects runtime env vars into window.__ENV__ before client JS loads.
+            This lets the client read NEXT_PUBLIC_* vars that are only set at
+            runtime on Render (not baked into the build). */}
+        <RuntimeEnvScript />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground flex min-h-screen flex-col antialiased`}
       >
