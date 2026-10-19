@@ -26,9 +26,11 @@ export interface GameHostProps {
   code: string;
   userId: string;
   username: string;
+  mode: "classic" | "twist";
+  maxPlayers: number;
 }
 
-export function GameHost({ code, userId, username }: GameHostProps) {
+export function GameHost({ code, userId, username, mode, maxPlayers }: GameHostProps) {
   const router = useRouter();
 
   const handleExit = React.useCallback(() => {
@@ -41,6 +43,8 @@ export function GameHost({ code, userId, username }: GameHostProps) {
       code={code}
       userId={userId}
       username={username}
+      mode={mode}
+      maxPlayers={maxPlayers}
       onExit={handleExit}
     />
   );

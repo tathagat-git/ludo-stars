@@ -512,3 +512,54 @@ Stage Summary:
 - The custom "twist" rule (tokens can move backward from their start point) is fully implemented in the engine and verified end-to-end in the browser.
 - All 5 subagent-produced feature areas integrate cleanly.
 - Dev server runs on port 3000 (Next.js), game-service on port 3003 (socket.io), Caddy on port 81 routes both.
+
+---
+Task ID: 10-board-polish
+Agent: board-polish-subagent
+Task: 6-color board support + Ludo King UI polish + 5-6 player layout
+
+Work Log:
+- Read worklog Tasks 1, 7, 9 + full source of `board.ts`, `engine.ts`, `ludo-board.tsx`, `player-card.tsx`, `token.tsx`, `game-room.tsx`. Confirmed the new 6-color API: `COLORS` has 6 entries; `BASE_REGIONS` and `HOME_COLUMN_CELLS` only define the 4 standard colors; `posToCell` / `baseDockCell` now return `Cell | null` (null for purple/orange in base/home-column); new `isOnBoardColor()` helper exported.
+- Rewrote `ludo-board.tsx::getCellInfo` to skip purple/orange when iterating `HOME_COLUMN_CELLS` and `BASE_REGIONS` (uses `isOnBoardColor(c)` + `undefined` guards). No more "cannot read property of undefined" crashes.
+- Rewrote `ludo-board.tsx::getTokenPlacement` to handle nullable cells: added `offBoard: boolean` to `TokenPlacement`. When `posToCell`/`baseDockCell` returns null, returns `offBoard: true` and the render loop skips that token (it's drawn off-board by PlayerCard). Track positions (0–51) and center finish (pos=200) always render on-grid for every color.
+- Added Ludo King polish to the board: colored start squares now show a rotated `ArrowRight` chevron pointing along the track's clockwise direction (red=up, green=right, yellow=down, blue=left, purple=left, orange=right); home-column approach cells (pos 100–104) use `COLOR_BG_SOFT` with the last home cell (pos 105) using full `COLOR_BG`; center finish keeps the 4 colored triangles + adds a centered `Crown` icon; board wrapped in `rounded-xl border-2 border-slate-800 bg-white p-1 shadow-2xl`; added pulsing `ring-4 ring-emerald-400/40` turn glow on the board wrapper when `state.currentSeat === mySeat` and phase is roll/move; track cells use `border border-slate-200`.
+- Extended finished-token offset map to include purple (bottom-left-ish) and orange (top-right-ish) so finished purple/orange tokens cluster visibly at center without overlapping the 4 standard triangles.
+- Added `OffBoardStrip` component to `player-card.tsx` — compact "Base ● ● ● ●" + "Home ▢ ▢ ▢ ▢ ▢ ★" rows rendered only for purple/orange players (when `!isOnBoardColor(color)` and tokens are provided). Each cell ~20px; renders mini colored tokens at the correct index when a token is in base (pos=-1, by token.index 0–3), in home column (pos 100–105), or finished (pos 200, shown as a crown in the last cell). Added optional `tokens?: Token[]` prop to PlayerCard.
+- Replaced `game-room.tsx`'s fixed 4-seat `SEAT_POSITION` layout with a responsive `auto-fit minmax(min(100%, 160px), 1fr)` grid that scales to 2–6 players above the board. Removed the now-unused `EmptySeat` component, `SEAT_POSITION` map, and `seatForPosition` helper. Passes `tokens={gameState.tokens.filter((t) => t.seat === p.seat)}` to each `PlayerCard`. Board + dice remain centered; chat aside unchanged.
+- Small polish to `token.tsx`: added a glossy top-left radial highlight (`bg-gradient-to-br from-white/70 to-transparent`) for a 3D marble shine; kept the existing inner highlight dot, white border, framer-motion animation, and aria-labels.
+- Ran `bun run lint` — passes cleanly (0 errors, 0 warnings) for all in-scope files. `bunx tsc --noEmit` shows only pre-existing errors in files OUTSIDE my scope (`src/lib/ludo/board.ts:90` intentional — `HOME_COLUMN_CELLS` deliberately omits purple/orange; `mini-services/game-service/index.ts`; `src/app/api/lobby/route.ts`; skill examples). All 4 of my edited files compile cleanly.
+
+Stage Summary:
+- Files updated: `src/components/game/ludo-board.tsx`, `src/components/game/player-card.tsx`, `src/components/game/game-room.tsx`, `src/components/game/token.tsx`. Work record saved at `/home/z/my-project/agent-ctx/10-board-polish.md`.
+- Key visual changes: board no longer crashes for 5-6 player games (purple/orange handled off-board); Ludo King-style start arrows + tinted home columns + center crown + physical-board frame + pulsing turn glow; PlayerCard shows compact off-board Base + Home strip for purple/orange; game-room uses responsive auto-fit grid for 2–6 players; token pawn has a 3D glossy shine. Existing 4-player games continue to render unchanged.
+
+---
+Task ID: 11
+Agent: main
+Task: Social links (Instagram), 5-6 player support, Ludo King UI polish.
+
+Work Log:
+- **Social links**: updated `src/components/ui/footer.tsx` — removed GitHub, added Instagram (lucide `Instagram` icon, links to instagram.com/ludostars). Kept Twitter. This footer is shared by landing + dashboard.
+- **Engine 6-color support** (`src/lib/ludo/engine.ts`): added `purple` (seat 4, start=6) and `orange` (seat 5, start=32) to `Color`, `COLORS`, `COLOR_START`, `HOME_ENTRY`. Added 6 & 32 to `SAFE_SQUARES`. Updated `maxPlayers` comment to `2|3|4|5|6`. Engine internals (moveForward/moveBackward/applyRoll/applyMove/passTurn) are generic over maxPlayers, so 5-6 work without further changes.
+- **Board geometry 6-color** (`src/lib/ludo/board.ts`): `BASE_DOCKS` now has purple/orange entries (placeholder -1,-1 cells since there's no room on the 15x15 grid). `BASE_REGIONS` changed to `Partial` (only 4 standard colors have on-grid regions). `HOME_COLUMN_CELLS` changed to `Partial` (purple/orange have no on-grid home column — 15x15 Ludo board only has 4 approach directions to center). Added `ON_BOARD_COLORS` set + `isOnBoardColor()`. `posToCell`/`baseDockCell` now return `Cell | null` — null when a purple/orange token is in base or home column (rendered off-board instead). Added purple/orange to all color class maps (COLOR_BG, COLOR_BG_SOFT, COLOR_BORDER, COLOR_TEXT, COLOR_DOT).
+- **Lobby 5-6 players**: `src/app/api/lobby/route.ts` `validateCreate` now accepts `[2,3,4,5,6]`. Fixed a TS error with bot playerRows typing (userId: string | null). `src/components/lobby/create-game-dialog.tsx` max-players Select now offers 5 & 6 player options. Game-service `clampMaxPlayers` now caps at 6.
+- **Passing mode+maxPlayers to websocket**: the websocket `room:join` defaults to 4 players if maxPlayers isn't sent. Added `RoomConfig { mode?, maxPlayers? }` to `src/lib/ludo/client.ts`; `createGameSocket` + `useGameRoom` now accept and forward config in the `room:join` emit. `src/app/page.tsx` (server component) now does a DB lookup (`db.game.findUnique`) to read the persisted Game row's mode+maxPlayers and passes them to `GameHost` → `GameRoom` → `useGameRoom`. `game-host.tsx` and `game-room.tsx` updated to accept + forward these props.
+- **Board UI 6-color + Ludo King polish** (subagent Task 10-board-polish): `ludo-board.tsx` fixed 6-color crashes (guards undefined BASE_REGIONS/HOME_COLUMN_CELLS for purple/orange; `getTokenPlacement` adds `offBoard` flag → skips rendering those tokens on-grid). Ludo King polish: colored start squares with clockwise arrow chevrons, home-column approach cells use soft tint (last cell full color), center finish with 4 triangles + Crown icon, board wrapped in rounded bordered shadowed frame, pulsing emerald turn-glow on the board when it's your roll/move, clean slate cell borders. `player-card.tsx` renders off-board mini Base + Home strips for purple/orange (4 dock circles + 6 home cells with crown). `game-room.tsx` uses responsive auto-fit grid for 2-6 player cards. `token.tsx` glossy 3D marble shine.
+
+Verification (agent-browser, via Caddy port 81):
+- ✅ Footer shows Instagram + Twitter (GitHub removed).
+- ✅ Create Private Room dialog offers 5 & 6 player options.
+- ✅ Created a 6-player classic room (1 human + 5 bots). DB row confirmed maxPlayers=6.
+- ✅ `[room:join]` payload carries maxPlayers=6 → room created with `max=6`.
+- ✅ Lobby shows "6/6 players" with 6 seats (alice + Bot Delta/Sigma/Sigma/Kappa/Alpha).
+- ✅ Started the game; service log: "game started — 6 players (1 human, 5 bot)".
+- ✅ All 6 seats cycled through turns: seat 0 (alice) → BOT seat 1 (Bot Delta) → BOT seat 2 (Bot Sigma) → BOT seat 3 (Bot Sigma) → BOT seat 4 (Bot Kappa, purple) → BOT seat 5 (Bot Alpha, orange).
+- ✅ Purple player card renders "purple base docks" + "purple home column" off-board strips.
+- ✅ Dice rolling + token moves work in the 6-player game.
+- ✅ No runtime errors in dev.log or browser console. Lint + tsc clean.
+
+Stage Summary:
+- 5 and 6 player games fully supported end-to-end (lobby → DB → websocket → engine → board → bot AI).
+- Purple & orange players (seats 4 & 5) share the 52-cell track; their bases + home columns render as compact off-board strips in their PlayerCards (since the 15x15 Ludo board physically only has 4 corner bases / 4 center-approach directions).
+- Board polished to Ludo King style: colored start squares with direction arrows, safe-star markings, colored home columns, crowned center, framed board, turn glow.
+- Social links: Instagram (no GitHub).

@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useGameRoom, type SeatInfo } from '@/lib/ludo/client'
 import { COLORS } from '@/lib/ludo/engine'
-import { COLOR_BG, COLOR_DOT, COLOR_TEXT } from '@/lib/ludo/board'
+import { COLOR_BG, COLOR_DOT } from '@/lib/ludo/board'
 import { cn } from '@/lib/utils'
 import { LudoBoard } from './ludo-board'
 import { Dice } from './dice'
@@ -31,17 +31,12 @@ interface GameRoomProps {
   code: string
   userId: string
   username: string
+  mode: 'classic' | 'twist'
+  maxPlayers: number
   onExit: () => void
 }
 
-const SEAT_POSITION: Record<number, 'top' | 'bottom' | 'left' | 'right'> = {
-  0: 'bottom', // red
-  1: 'left', // green
-  2: 'top', // yellow
-  3: 'right', // blue
-}
-
-export function GameRoom({ code, userId, username, onExit }: GameRoomProps) {
+export function GameRoom({ code, userId, username, mode, maxPlayers, onExit }: GameRoomProps) {
   const {
     connected,
     room,
@@ -60,7 +55,7 @@ export function GameRoom({ code, userId, username, onExit }: GameRoomProps) {
     addBot,
     removeBot,
     leaveRoom,
-  } = useGameRoom(code, userId, username)
+  } = useGameRoom(code, userId, username, { mode, maxPlayers })
 
   const [copied, setCopied] = useState(false)
   const isHost = room?.hostUserId === userId
@@ -156,16 +151,6 @@ export function GameRoom({ code, userId, username, onExit }: GameRoomProps) {
   const sortedWinners = gameState.winners
   const isGameOver = gameState.phase === 'gameover'
 
-  // Seat → player map.
-  const playerBySeat = (seat: number) => players[seat]
-
-  const seatForPosition = (pos: 'top' | 'left' | 'right' | 'bottom') => {
-    for (const s of Object.keys(SEAT_POSITION)) {
-      if (SEAT_POSITION[+s] === pos) return +s
-    }
-    return 0
-  }
-
   return (
     <main className="flex min-h-screen flex-col bg-gradient-to-br from-background via-background to-muted/30">
       {/* Header */}
@@ -192,100 +177,48 @@ export function GameRoom({ code, userId, username, onExit }: GameRoomProps) {
 
       {/* Body */}
       <div className="flex flex-1 flex-col gap-4 p-3 lg:flex-row lg:p-4">
-        {/* Board + side players */}
+        {/* Board + players */}
         <section className="flex flex-1 flex-col items-center gap-3">
-          {/* Top player */}
-          <div className="w-full max-w-md">
-            {playerBySeat(seatForPosition('top')) ? (
+          {/* Player cards — auto-fit grid scales cleanly from 2 to 6 players.
+              Each card has a min-width so they wrap nicely on mobile. */}
+          <div
+            className="grid w-full max-w-3xl gap-2"
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+            }}
+          >
+            {players.map((p) => (
               <PlayerCard
-                player={playerBySeat(seatForPosition('top'))!}
-                isCurrent={gameState.currentSeat === seatForPosition('top')}
-                isYou={mySeat === seatForPosition('top')}
+                key={p.seat}
+                player={p}
+                tokens={gameState.tokens.filter((t) => t.seat === p.seat)}
+                isCurrent={gameState.currentSeat === p.seat}
+                isYou={mySeat === p.seat}
+                compact
               />
-            ) : (
-              <EmptySeat seat={seatForPosition('top')} />
-            )}
+            ))}
           </div>
 
-          {/* Middle row: left player | board | right player */}
-          <div className="flex w-full items-stretch justify-center gap-2 sm:gap-3">
-            <div className="hidden w-32 shrink-0 sm:block">
-              {playerBySeat(seatForPosition('left')) ? (
-                <PlayerCard
-                  player={playerBySeat(seatForPosition('left'))!}
-                  isCurrent={gameState.currentSeat === seatForPosition('left')}
-                  isYou={mySeat === seatForPosition('left')}
-                />
-              ) : (
-                <EmptySeat seat={seatForPosition('left')} />
-              )}
-            </div>
+          {/* Board */}
+          <LudoBoard
+            state={gameState}
+            mySeat={mySeat}
+            onTokenClick={(tokenId, dir) => move(tokenId, dir)}
+            highlightLegal={isMyTurn && gameState.phase === 'move'}
+          />
 
-            <div className="flex flex-col items-center gap-3">
-              <LudoBoard
-                state={gameState}
-                mySeat={mySeat}
-                onTokenClick={(tokenId, dir) => move(tokenId, dir)}
-                highlightLegal={isMyTurn && gameState.phase === 'move'}
-              />
-              {/* Mobile: inline left/right players below the board */}
-              <div className="grid w-full grid-cols-2 gap-2 sm:hidden">
-                {(['left', 'right'] as const).map((pos) => {
-                  const seat = seatForPosition(pos)
-                  const p = playerBySeat(seat)
-                  return p ? (
-                    <PlayerCard
-                      key={pos}
-                      player={p}
-                      isCurrent={gameState.currentSeat === seat}
-                      isYou={mySeat === seat}
-                      compact
-                    />
-                  ) : (
-                    <EmptySeat key={pos} seat={seat} compact />
-                  )
-                })}
-              </div>
-
-              {/* Dice */}
-              <div className="w-full max-w-xs">
-                <Dice
-                  value={gameState.dice}
-                  rolling={lastEvent?.type === 'roll'}
-                  onRoll={roll}
-                  canRoll={isMyTurn && gameState.phase === 'roll'}
-                  currentSeat={gameState.currentSeat}
-                  isMyTurn={isMyTurn}
-                  phase={gameState.phase}
-                  playerName={currentPlayer?.name}
-                />
-              </div>
-            </div>
-
-            <div className="hidden w-32 shrink-0 sm:block">
-              {playerBySeat(seatForPosition('right')) ? (
-                <PlayerCard
-                  player={playerBySeat(seatForPosition('right'))!}
-                  isCurrent={gameState.currentSeat === seatForPosition('right')}
-                  isYou={mySeat === seatForPosition('right')}
-                />
-              ) : (
-                <EmptySeat seat={seatForPosition('right')} />
-              )}
-            </div>
-          </div>
-
-          {/* Bottom player */}
-          <div className="w-full max-w-md">
-            {playerBySeat(seatForPosition('bottom')) ? (
-              <PlayerCard
-                player={playerBySeat(seatForPosition('bottom'))!}
-                isCurrent={gameState.currentSeat === seatForPosition('bottom')}
-                isYou={mySeat === seatForPosition('bottom')}
-              />
-            ) : (
-              <EmptySeat seat={seatForPosition('bottom')} />
-            )}
+          {/* Dice */}
+          <div className="w-full max-w-xs">
+            <Dice
+              value={gameState.dice}
+              rolling={lastEvent?.type === 'roll'}
+              onRoll={roll}
+              canRoll={isMyTurn && gameState.phase === 'roll'}
+              currentSeat={gameState.currentSeat}
+              isMyTurn={isMyTurn}
+              phase={gameState.phase}
+              playerName={currentPlayer?.name}
+            />
           </div>
 
           {/* Last event ticker */}
@@ -504,28 +437,6 @@ function LobbyView(props: LobbyViewProps) {
         <ChatPanel messages={chat} onSend={onSend} className="h-full min-h-[300px]" />
       </div>
     </main>
-  )
-}
-
-// ─── Empty seat placeholder ──────────────────────────────────────────────────
-
-function EmptySeat({ seat, compact }: { seat: number; compact?: boolean }) {
-  const color = COLORS[seat]!
-  return (
-    <div
-      aria-label={`Empty seat ${seat + 1}`}
-      className={cn(
-        'flex items-center justify-center rounded-lg border border-dashed border-border bg-card/40',
-        compact ? 'p-2' : 'p-3',
-      )}
-    >
-      <span
-        className={cn('rounded-full border border-dashed', COLOR_DOT[color], COLOR_TEXT[color])}
-        style={{ width: 24, height: 24 }}
-        aria-hidden
-      />
-      <span className="ml-2 text-xs text-muted-foreground">Empty</span>
-    </div>
   )
 }
 

@@ -107,7 +107,17 @@ export interface UseGameRoomResult {
 
 /// Create a connected game socket for a given room/user. The caller is
 /// responsible for emitting `room:join` (the hook does this on connect).
-export function createGameSocket(code: string, userId: string, username: string): Socket {
+/// Optional room configuration carried alongside the join payload. When the
+/// room is created via the lobby API (which persists a Game row with the
+/// chosen mode + maxPlayers), the GameRoom fetches that config and passes it
+/// here so the websocket `room:join` creates the room with the right settings
+/// (instead of the server defaulting to 4 players).
+export interface RoomConfig {
+  mode?: 'classic' | 'twist'
+  maxPlayers?: number
+}
+
+export function createGameSocket(code: string, userId: string, username: string, config?: RoomConfig): Socket {
   const socket = io('/?XTransformPort=' + GAME_SERVICE_PORT, {
     transports: ['websocket', 'polling'],
     forceNew: true,
@@ -116,18 +126,26 @@ export function createGameSocket(code: string, userId: string, username: string)
     reconnectionDelay: 1000,
     timeout: 10000,
   })
-  // Stash join payload so we can re-emit on reconnect.
-  ;(socket as unknown as { __joinPayload?: { code: string; userId: string; username: string } }).__joinPayload = { code, userId, username }
+  // Stash join payload (including optional room config) so we can re-emit on
+  // reconnect. The server reads mode/maxPlayers only when creating a NEW
+  // room; on reconnect it ignores them (the room already exists).
+  ;(socket as unknown as { __joinPayload?: { code: string; userId: string; username: string; mode?: string; maxPlayers?: number } }).__joinPayload = {
+    code,
+    userId,
+    username,
+    mode: config?.mode,
+    maxPlayers: config?.maxPlayers,
+  }
   return socket
 }
 
-export function useGameRoom(code: string, userId: string, username: string): UseGameRoomResult {
+export function useGameRoom(code: string, userId: string, username: string, config?: RoomConfig): UseGameRoomResult {
   // Create the socket lazily on first render. Re-create it only if the
   // (code, userId, username) tuple changes (rare in practice — the GameRoom
   // is usually mounted fresh per game). Using a lazy initializer avoids the
   // "setState in effect" lint warning while keeping the socket stable across
   // re-renders.
-  const [socket] = useState<Socket>(() => createGameSocket(code, userId, username))
+  const [socket] = useState<Socket>(() => createGameSocket(code, userId, username, config))
   const [connected, setConnected] = useState(false)
   const [room, setRoom] = useState<RoomState | null>(null)
   const [gameState, setGameState] = useState<GameState | null>(null)
@@ -144,7 +162,13 @@ export function useGameRoom(code: string, userId: string, username: string): Use
       // already have a seat, it re-binds the socket; otherwise it adds us.
       // This handles both the initial connect and reconnects (StrictMode
       // double-mount, network blips, HMR).
-      s.emit(EV.ROOM_JOIN, { code, userId, username })
+      s.emit(EV.ROOM_JOIN, {
+        code,
+        userId,
+        username,
+        mode: config?.mode,
+        maxPlayers: config?.maxPlayers,
+      })
     }
     const handleDisconnect = () => setConnected(false)
 
@@ -220,7 +244,13 @@ export function useGameRoom(code: string, userId: string, username: string): Use
     // handler above was registered too late and never fired. Handle that
     // case by emitting room:join immediately.
     if (s.connected) {
-      s.emit(EV.ROOM_JOIN, { code, userId, username })
+      s.emit(EV.ROOM_JOIN, {
+        code,
+        userId,
+        username,
+        mode: config?.mode,
+        maxPlayers: config?.maxPlayers,
+      })
     }
 
     return () => {

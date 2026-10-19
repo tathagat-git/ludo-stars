@@ -1,0 +1,515 @@
+     1→     1→# Ludo Stars - Work Log
+     2→     2→
+     3→     3→This file is the shared work log for all agents working on the Ludo Stars
+     4→     4→project. Each agent appends a new section after finishing its task.
+     5→     5→
+     6→     6→---
+     7→     7→Task ID: 1
+     8→     8→Agent: main
+     9→     9→Task: Design & implement database schema + core Ludo game engine + board geometry.
+    10→    10→
+    11→    11→Work Log:
+    12→    12→- Inspected project scaffold: Next.js 16 + Tailwind 4 + shadcn/ui + Prisma + next-auth + zustand + socket.io example.
+    13→    13→- Designed Prisma schema with: User, Account, Session, VerificationToken, Friendship, FriendRequest, Game, GamePlayer, GameMove.
+    14→    14→- `bun run db:push` applied the schema to SQLite.
+    15→    15→- Built `src/lib/ludo/engine.ts` — full Ludo rules:
+    16→    16→  - 52-cell main track, 6-cell home columns, 8 safe squares (4 starts + 4 stars).
+    17→    17→  - Token position encoding: -1 = base, 0..51 = track, 100..105 = home column, 200 = finished, -999 = invalid (overshoot).
+    18→    18→  - Classic rules: roll 6 to release, 3 sixes → pass turn, capture on non-safe squares, exact-roll-to-finish (no overshoot).
+    19→    19→  - **TWIST MODE (user request)**: tokens on the main track OR home column can also move BACKWARD by the dice value, bounded by the player's own start square (cannot go below it). Backward moves can also capture opponents on non-safe squares.
+    20→    20→  - Auto-pass when no legal moves; auto-reroll on 6 (unless seat just finished).
+    21→    21→- Built `src/lib/ludo/bot.ts` — heuristic bot AI (finishing > capturing > escaping danger > releasing > advancing). Includes `randomBotName()` and `botThinkDelay()` (~700-1500ms).
+    22→    22→- Built `src/lib/ludo/board.ts` — 15x15 board geometry: TRACK_CELLS[52], HOME_COLUMN_CELLS per color, BASE_DOCKS per color, BASE_REGIONS, STAR_CELLS, `posToCell()` converter, Tailwind color class maps.
+    23→    23→
+    24→    24→Stage Summary:
+    25→    25→- Schema is live in SQLite (custom.db).
+    26→    26→- Game engine is the single source of truth for rules; the websocket mini-service will import it as the authority; the React UI will import the geometry + read-only state for rendering.
+    27→    27→- **TWIST RULE (the user's custom rule)**: After rolling, the player whose turn it is may pick any of their on-board tokens AND a direction (forward OR backward). Backward moves are clamped at the token's own start square. Captures still apply on backward landings. This is the `mode: 'twist'` setting on the GameState.
+    28→    28→
+    29→    29→Key conventions:
+    30→    30→- All shared ludo code lives in `src/lib/ludo/` and is importable by both the Next.js app and the `mini-services/game-service/` (which will need to import from `../../src/lib/ludo/...` or be given a copy — see Task 5).
+    31→    31→- Position encoding is documented at the top of `engine.ts`.
+    32→    32→- Seat 0 = red (bottom-left), 1 = green (top-left), 2 = yellow (top-right), 3 = blue (bottom-right).
+    33→    33→
+    34→    34→---
+    35→    35→Task ID: 4-b
+    36→    36→Agent: friends-subagent
+    37→    37→Task: Friends system API + Friends panel UI
+    38→    38→
+    39→    39→Work Log:
+    40→    40→- Read worklog + Prisma schema (Task 1): User / Friendship (fromId, toId, @@unique pair) / FriendRequest (fromId, toId, status pending|accepted|declined). Prisma client via `import { db } from '@/lib/db'`.
+    41→    41→- Verified `src/lib/auth.ts` (Task 4-a) exports `authOptions` and populates `session.user.id` + `session.user.username` via JWT/session callbacks.
+    42→    42→- Built 6 API route handlers, all auth-guarded with `getServerSession(authOptions)`:
+    43→    43→  - GET /api/friends — merges both directions of Friendship into a single list of `{ id, username, name, avatar, friendshipId, online:false }` (online flag is a mock; real presence will come from the game-service websocket mini-service in Task 5).
+    44→    44→  - GET /api/friends/search?q= — Prisma `username contains` (case-insensitive), excludes self + existing friends, returns top 10 with `isFriend` and `hasPendingRequest` flags computed from a single batch of friendship/pending-request queries.
+    45→    45→  - GET /api/friends/requests — pending incoming requests with sender profile, newest first.
+    46→    46→  - POST /api/friends/requests `{ toUserId }` — guards self / not-found / already-friends. Smart merge: if the target already sent ME a pending request, auto-accept it (transactional: create both Friendship rows + mark request accepted). If a previously-declined outgoing request exists, reactivate to pending. Otherwise create new pending request (201).
+    47→    47→  - POST /api/friends/requests/[id]/accept — transactional upsert of both Friendship rows (using the `fromId_toId` compound unique key from the schema) + update request to `accepted`. Guards: 404 / not-addressed-to-you (403) / not-pending (409).
+    48→    48→  - POST /api/friends/requests/[id]/decline — marks request `declined`. Same guards.
+    49→    49→  - DELETE /api/friends/[id]/remove — `[id]` is the OTHER user's id. Transactional `deleteMany` on both Friendship directions and any FriendRequest rows linking the two users (clean slate for re-add).
+    50→    50→- Built `src/components/friends/friends-panel.tsx` — named export `FriendsPanel`, takes no props, fetches its own data:
+    51→    51→  - Self-contained: creates its own module-level singleton `QueryClient` + mounts its own Sonner `<Toaster richColors />` so the panel works even if no top-level providers exist yet.
+    52→    52→  - Three tabs (Friends / Find / Requests) using shadcn Tabs. shadcn Card, Button, Input, Avatar, Badge + lucide icons (Search, UserPlus, Check, X, Users, UserX, Inbox).
+    53→    53→  - Find tab: debounced 300ms search input + Search button, skeleton loaders during fetch, empty + error states per tab.
+    54→    54→  - Friends tab: list with mock online dot (all offline) + Remove button.
+    55→    55→  - Requests tab: Accept / Decline buttons.
+    56→    56→  - All mutations call `toast.success` / `toast.error` via sonner and invalidate the right query keys (`friends`, `friend-requests`, `friend-search`).
+    57→    57→  - `max-h-96 overflow-y-auto` per tab with a custom scoped scrollbar via inline `<style>` block using `var(--border)` (intentionally NOT mutating the shared globals.css — out of my task scope).
+    58→    58→  - Mobile-friendly: TabsList is a 3-col grid; row layout stacks gracefully; touch targets >= 28px on action buttons.
+    59→    59→- Ran `bun run lint`: my 7 files pass cleanly (eslint exit 0, no warnings). The remaining 1 error + 1 warning in `src/components/game/dice.tsx` and `src/lib/ludo/client.ts` belong to other agents' task scopes (game UI / client) — untouched.
+    60→    60→
+    61→    61→Stage Summary:
+    62→    62→- Files produced:
+    63→    63→  - `src/app/api/friends/route.ts`
+    64→    64→  - `src/app/api/friends/search/route.ts`
+    65→    65→  - `src/app/api/friends/requests/route.ts`
+    66→    66→  - `src/app/api/friends/requests/[id]/accept/route.ts`
+    67→    67→  - `src/app/api/friends/requests/[id]/decline/route.ts`
+    68→    68→  - `src/app/api/friends/[id]/remove/route.ts`
+    69→    69→  - `src/components/friends/friends-panel.tsx`
+    70→    70→  - `/agent-ctx/4-b-friends-subagent.md` (work record)
+    71→    71→- API endpoints:
+    72→    72→  - GET  /api/friends                     — current user's friends list
+    73→    73→  - GET  /api/friends/search?q=<q>        — top-10 user search w/ isFriend + hasPendingRequest
+    74→    74→  - GET  /api/friends/requests            — pending incoming requests (with sender info)
+    75→    75→  - POST /api/friends/requests            — body { toUserId } — create FriendRequest (auto-accepts if target already requested me)
+    76→    76→  - POST /api/friends/requests/[id]/accept  — transactional accept (creates both Friendship rows)
+    77→    77→  - POST /api/friends/requests/[id]/decline — marks request `declined`
+    78→    78→  - DELETE /api/friends/[id]/remove        — removes both Friendship directions + all FriendRequest rows between the pair
+    79→    79→- Component exports:
+    80→    80→  - `FriendsPanel` (named export, no props) — self-contained, ready to drop into any page; renders Card with 3 tabs, manages its own TanStack Query cache and Sonner toaster.
+    81→    81→
+    82→    82→---
+    83→    83→Task ID: 4-a
+    84→    84→Agent: auth-subagent
+    85→    85→Task: NextAuth config + register/login API + auth UI
+    86→    86→
+    87→    87→Work Log:
+    88→    88→- Installed `bcryptjs@3.0.3` (+ `@types/bcryptjs`) for password hashing.
+    89→    89→- Generated a 32-byte hex `NEXTAUTH_SECRET` via `crypto.randomBytes(32).toString('hex')` and wrote it to `.env.local` (alongside `NEXTAUTH_URL=http://localhost:3000` and the existing `DATABASE_URL`). Appended the same `NEXTAUTH_SECRET` to the existing `.env` (which previously only had `DATABASE_URL`). Dev server reloaded both env files automatically.
+    90→    90→- Authored `src/types/next-auth.d.ts` — module augmentation that adds `id` and `username` to `Session.user`, `User`, and the JWT (`DefaultJWT`).
+    91→    91→- Authored `src/lib/auth.ts` exporting `authOptions` (NextAuthOptions): JWT session strategy, `secret: process.env.NEXTAUTH_SECRET`, single `CredentialsProvider` that looks up the user by email via Prisma and verifies bcrypt hash; `jwt` callback stores `id`/`username` from the user object onto the token; `session` callback copies them onto `session.user`. Also set `pages.signIn: "/"` so the home page renders the inline form.
+    92→    92→- Authored `src/lib/auth-options.ts` as a thin re-export wrapper (kept `auth.ts` as the canonical source).
+    93→    93→- Authored `src/app/api/auth/[...nextauth]/route.ts` — NextAuth route handler exposing `GET` and `POST` from `NextAuth(authOptions)`.
+    94→    94→- Authored `src/app/api/auth/register/route.ts` — POST handler validating `{ email, username, password }` with a zod schema (email format; username 3–20 chars `[A-Za-z0-9_]`; password ≥ 6). Normalizes email to lowercase. Performs uniqueness checks for both email and username (returns 409 with a friendly message). Hashes password with bcrypt (cost 10), creates the User via Prisma, returns `{ ok, user }` with 201.
+    95→    95→- Authored `src/app/api/auth/me/route.ts` — GET handler using `getServerSession(authOptions)`: returns 401 if no session, otherwise fetches the full public profile (`id, email, username, name, avatar, wins, losses, gamesPlayed`) and returns it as `{ user }`.
+    96→    96→- Authored `src/components/providers.tsx` — `'use client'` wrapper around `SessionProvider` from `next-auth/react` (for Task 8 to mount in `layout.tsx`).
+    97→    97→- Authored `src/components/auth/auth-form.tsx` — `'use client'` tabbed (Sign In / Create Account) form built on shadcn `Card`, `Tabs`, `Input`, `Label`, `Button`. Uses `react-hook-form` + `zodResolver(@hookform/resolvers/zod)` with two separate schemas (login: email+password; register: email+username+password). On login it calls `signIn('credentials', { redirect: false })`; on register it POSTs to `/api/auth/register` then auto-logs-in via `signIn`. On success: `toast.success('Welcome!')` (via `sonner`), `router.refresh()`, and calls the optional `onAuthed?.()` prop. On failure: `toast.error(message)`. Submit button shows a `Loader2` spinner while pending. Field-level error messages render under each input.
+    98→    98→- Authored `src/components/auth/user-menu.tsx` — `'use client'` dropdown menu (shadcn `DropdownMenu` + `Avatar` + `Button`) shown only when `useSession()` returns a session. Trigger shows the user's avatar (or initials fallback) and a truncated username. Dropdown shows display name + email and a `Sign Out` item that calls `signOut({ callbackUrl: '/' })`. Renders `null` while session is loading (no auth flash).
+    99→    99→- Verified end-to-end against the running dev server: registered a fresh user → confirmed 201 + user JSON; confirmed 409 on duplicate email and 400 on invalid schema; obtained a NextAuth CSRF token → posted credentials to `/api/auth/callback/credentials` (HTTP 200, session cookie set); `GET /api/auth/me` then returned the full profile; `GET /api/auth/session` returned the augmented session with `id` and `username`. Cleaned up the test user afterward.
+   100→   100→- Ran `bun run lint` — all files in scope produce zero errors and zero warnings. (One pre-existing error in `src/components/game/dice.tsx` belongs to Task 3 and one warning in `src/lib/ludo/client.ts` belongs to Task 1; neither is in this task's scope.)
+   101→   101→- Ran `bunx tsc --noEmit` filtered to this task's files — no type errors.
+   102→   102→
+   103→   103→Stage Summary:
+   104→   104→- Files produced (this task's scope only):
+   105→   105→  - `src/lib/auth.ts` — NextAuth options (Credentials provider, JWT session, jwt/session callbacks).
+   106→   106→  - `src/lib/auth-options.ts` — re-export of `authOptions`.
+   107→   107→  - `src/app/api/auth/[...nextauth]/route.ts` — NextAuth GET/POST handler.
+   108→   108→  - `src/app/api/auth/register/route.ts` — POST `{ email, username, password }` → creates user.
+   109→   109→  - `src/app/api/auth/me/route.ts` — GET current user (401 if unauth).
+   110→   110→  - `src/types/next-auth.d.ts` — `Session.user`/`User`/`JWT` augmentation with `id` + `username`.
+   111→   111→  - `src/components/providers.tsx` — `'use client'` `SessionProvider` wrapper.
+   112→   112→  - `src/components/auth/auth-form.tsx` — tabbed Login/Register form (RHF + zod + sonner).
+   113→   113→  - `src/components/auth/user-menu.tsx` — avatar + Sign Out dropdown.
+   114→   114→  - `.env.local` and `.env` — added `NEXTAUTH_SECRET` + `NEXTAUTH_URL`.
+   115→   115→- API endpoints:
+   116→   116→  - `POST /api/auth/register` — body `{ email, username, password }` → `201 { ok, user }` on success, `400` on validation error, `409` on duplicate email/username.
+   117→   117→  - `GET /api/auth/me` — returns `{ user: { id, email, username, name, avatar, wins, losses, gamesPlayed } }` or `401`.
+   118→   118→  - `GET /api/auth/session` (NextAuth built-in) — returns `{ user: { id, username, email, name }, expires }`.
+   119→   119→  - `GET/POST /api/auth/*` (NextAuth built-ins: `signin`, `signout`, `csrf`, `session`, `callback/credentials`).
+   120→   120→- How to use (for Task 8 / page owner):
+   121→   121→  - Wrap the React tree once at the root: `import { Providers } from "@/components/providers"` and use it in `layout.tsx` (Task 8 owns layout — they will import this component).
+   122→   122→  - Drop `<AuthForm onAuthed={() => router.refresh()} />` anywhere a logged-out user lands (e.g. the home page). After successful auth it calls `router.refresh()` automatically.
+   123→   123→  - Drop `<UserMenu />` in the header/nav — it self-hides when unauthenticated.
+   124→   124→  - Server components / route handlers read the session via `import { getServerSession } from "next-auth"; import { authOptions } from "@/lib/auth"` (see `/api/auth/me/route.ts` for the canonical pattern).
+   125→   125→  - Client components read the session via `useSession()` from `next-auth/react` — the augmented `session.user.id` and `session.user.username` are typed.
+   126→   126→
+   127→   127→---
+   128→   128→Task ID: 8
+   129→   129→Agent: shell-agent
+   130→   130→Task: Landing page, dashboard shell, theme, and shared providers (top-level routing).
+   131→   131→
+   132→   132→Work Log:
+   133→   133→- Inspected worklog (Task 1 done; Tasks 4-a, 4-b, 6, 7 in flight). Confirmed
+   134→   134→  engine + board + Prisma schema exist. Confirmed `src/components/providers.tsx`
+   135→   135→  already created by Task 4-a (SessionProvider wrapper, named + default export).
+   136→   136→- Created `src/components/theme-provider.tsx` — next-themes wrapper with
+   137→   137→  `attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange`.
+   138→   138→- Created `src/components/app-providers.tsx` — composes
+   139→   139→  `<SessionProvider><ThemeProvider>{children}</ThemeProvider></SessionProvider>`.
+   140→   140→  Used by `layout.tsx`. Does NOT touch Task 4-a's `providers.tsx`.
+   141→   141→- Updated `src/app/layout.tsx`:
+   142→   142→  - Kept Geist / Geist_Mono fonts.
+   143→   143→  - Wrapped `{children}` in `<AppProviders>`.
+   144→   144→  - Kept existing `<Toaster />` from `@/components/ui/toaster`.
+   145→   145→  - Added `<Toaster2 />` (named `Toaster` from `@/components/ui/sonner`).
+   146→   146→  - Body class now `min-h-screen flex flex-col` (for sticky footer).
+   147→   147→  - Metadata → "Ludo Stars — Play Ludo with Friends & Bots".
+   148→   148→  - `suppressHydrationWarning` kept on `<html>` (next-themes requirement).
+   149→   149→- Rewrote `src/app/page.tsx` as a server component:
+   150→   150→  - `async` (Next.js 16 — `searchParams` is a Promise, `await` it).
+   151→   151→  - `getServerSession(authOptions)` from `@/lib/auth`.
+   152→   152→  - Routing:
+   153→   153→    - No session            → `<Landing />`
+   154→   154→    - Session + `?room=`    → `<GameHost code={...} userId={...} username={...} />`
+   155→   155→    - Session, no room      → `<Dashboard user={...} />`
+   156→   156→  - Normalizes `room` (string | string[] → single string).
+   157→   157→- Created `src/components/dashboard/game-host.tsx` — small `'use client'`
+   158→   158→  wrapper around Task 7's `<GameRoom />` that owns `useRouter` and forwards
+   159→   159→  `onExit={() => router.push('/')}`. Needed because server components can't
+   160→   160→  pass function callbacks to client components.
+   161→   161→- Created `src/components/landing/landing.tsx`:
+   162→   162→  - `'use client'`, two-column hero + auth form on `lg:` (stacks on mobile).
+   163→   163→  - Hero: "Ludo Stars" wordmark with red→amber→green gradient text, tagline
+   164→   164→    "Classic Ludo with a twist — move forward AND backward!", 4 feature
+   165→   165→    bullets, "Get Started" CTA scrolls to the auth form.
+   166→   166→  - Right column: `<AuthForm onAuthed={() => router.refresh()} />` in a Card.
+   167→   167→  - Mini CSS-art Ludo board preview (15×15 grid using `grid-cols-15`).
+   168→   168→  - Warm gradient background using `.bg-ludo-hero` utility (red/yellow/green
+   169→   169→    radial wash). NO indigo/blue.
+   170→   170→  - Sticky footer included.
+   171→   171→- Created `src/components/dashboard/dashboard.tsx`:
+   172→   172→  - TopNav → hero ("Welcome back, {username}!") → StatsCards → main grid:
+   173→   173→    - Left (lg:col-span-2): `<QuickPlay />`, `<GameHistory />`.
+   174→   174→    - Right sidebar: `<FriendsPanel />`, Card with `<CreateGameDialog />` +
+   175→   175→      `<JoinGameDialog />` triggers + a "Multiplayer" hint.
+   176→   176→  - Sticky footer.
+   177→   177→  - User prop: `{ id, name?, email?, image?, username?, wins?, losses?, gamesPlayed? }`.
+   178→   178→- Created `src/components/dashboard/top-nav.tsx` — sticky header with logo,
+   179→   179→  ThemeToggle, and `<UserMenu />` (Task 4-a, named import).
+   180→   180→- Created `src/components/dashboard/theme-toggle.tsx` — Sun/Moon button
+   181→   181→  using `next-themes` `useTheme`. Mounted-deferred to avoid hydration mismatch.
+   182→   182→- Created `src/components/dashboard/stats-cards.tsx` — 4-card grid
+   183→   183→  (Games / Wins / Losses / Win Rate). Props: `{ wins, losses, gamesPlayed }`.
+   184→   184→- Created `src/components/ui/footer.tsx` — sticky `<footer className="mt-auto ...">`
+   185→   185→  with credits + GitHub/Twitter links. Used by both Landing and Dashboard.
+   186→   186→- Updated `src/app/globals.css`:
+   187→   187→  - Tailwind v4 `@utility grid-cols-15` and `@utility grid-rows-15` (board is 15×15).
+   188→   188→  - `.scrollbar-thin` custom scrollbar styles (6px thumb, hover intensifies).
+   189→   189→  - `.bg-ludo-hero` warm radial-wash helper for hero backgrounds.
+   190→   190→  - Tweaked `--primary` to a warm Ludo red: `oklch(0.55 0.215 25)` light /
+   191→   191→    `oklch(0.65 0.20 25)` dark. Also `--ring`, `--sidebar-primary`,
+   192→   192→    `--sidebar-ring`, `--chart-1` updated to match. NO indigo/blue.
+   193→   193→
+   194→   194→Stage Summary:
+   195→   195→- The full top-level routing pipeline is in place. The `/` route conditionally
+   196→   196→  renders Landing / Dashboard / GameRoom based on session + `?room=` query.
+   197→   197→- All theme + provider scaffolding is wired (next-themes class strategy,
+   198→   198→  next-auth SessionProvider, sonner + shadcn toast).
+   199→   199→- All shared layout pieces (TopNav, Footer, StatsCards, ThemeToggle) are
+   200→   200→  reusable client components.
+   201→   201→- Peer-task dependencies (auth form, user menu, friends panel, lobby widgets,
+   202→   202→  game room) are imported as **named exports** with the interfaces documented
+   203→   203→  below; the dev server will hot-reload successfully once Tasks 4-a, 4-b, 6, 7
+   204→   204→  deliver their files.
+   205→   205→
+   206→   206→Key conventions:
+   207→   207→- Routing: ONLY `/` is exposed. Entering a room: `router.push('/?room=CODE')`
+   208→   208→  (soft) or `window.location.search = '?room=CODE'` (hard). Exiting:
+   209→   209→  `router.push('/')` or `window.location.search = ''`.
+   210→   210→- `onExit` for `<GameRoom />` is provided by the client wrapper
+   211→   211→  `<GameHost />` (`src/components/dashboard/game-host.tsx`) — server
+   212→   212→  components cannot pass function callbacks to client components.
+   213→   213→- The body element is `min-h-screen flex flex-col` so the sticky footer
+   214→   214→  (`<footer className="mt-auto">`) is pushed down naturally on short content
+   215→   215→  and never overlays long content.
+   216→   216→- Theme: light by default, system-respecting, class strategy, no flash on
+   217→   217→  toggle (`disableTransitionOnChange`).
+   218→   218→- Color palette: warm Ludo red primary. NO indigo/blue as primary.
+   219→   219→- All owned files pass `bun run lint` cleanly. (The only 2 lint errors are in
+   220→   220→  `src/components/game/dice.tsx` and `src/lib/ludo/client.ts` — peer-task
+   221→   221→  files I do not touch.)
+   222→   222→
+   223→   223→Expected peer-task interfaces (named exports, no default-only):
+   224→   224→- `@/lib/auth` → `authOptions`
+   225→   225→- `@/components/auth/auth-form` → `AuthForm` (props: `{ onAuthed?: () => void }`)
+   226→   226→- `@/components/auth/user-menu` → `UserMenu` (no props)
+   227→   227→- `@/components/friends/friends-panel` → `FriendsPanel` (no props)
+   228→   228→- `@/components/lobby/quick-play` → `QuickPlay` (no props)
+   229→   229→- `@/components/lobby/game-history` → `GameHistory` (no props)
+   230→   230→- `@/components/lobby/create-game-dialog` → `CreateGameDialog` (no props)
+   231→   231→- `@/components/lobby/join-game-dialog` → `JoinGameDialog` (no props)
+   232→   232→- `@/components/game/game-room` → `GameRoom` (props:
+   233→   233→  `{ code: string; userId: string; username: string; onExit: () => void }`)
+   234→   234→
+   235→   235→Work record: `/agent-ctx/8-landing-dashboard-shell.md`.
+   236→   236→
+   237→   237→---
+   238→   238→Task ID: 5
+   239→   239→Agent: real-time-game-service
+   240→   240→Task: Build the WebSocket (socket.io) real-time game service mini-service on port 3003.
+   241→   241→
+   242→   242→Work Log:
+   243→   243→- Created `/home/z/my-project/mini-services/game-service/` as an independent bun project.
+   244→   244→- `package.json` — name `ludo-game-service`, scripts `dev` (`bun --hot index.ts`) and `start` (`bun index.ts`). Deps: `socket.io`. DevDeps: `@types/socket.io`, `bun-types`.
+   245→   245→- `index.ts` — socket.io server, port 3003 (hardcoded), path `/`, CORS `*`, pingTimeout 60s, pingInterval 25s. Imports the ludo engine + bot AI DIRECTLY via relative path (`../../src/lib/ludo/engine.ts` / `bot.ts`) — bun supports native TS, no copy needed. Documented in code header.
+   246→   246→- In-memory stores: `rooms: Map<roomId, RoomState>` and `sockets: Map<socketId, {userId, roomId}>`.
+   247→   247→- RoomState carries: id, code, mode, maxPlayers, botCount, seats (SeatState[]), gameState, hostUserId, createdAt, botTimer, destroyTimer.
+   248→   248→- SeatState: { seat, userId, isBot, name, socketId, ready, disconnected?, forfeited?, joinedAt }.
+   249→   249→- Room codes: 6-char uppercase alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no 0/O/1/I confusions). `room:join` with unknown code creates the room (host = joining user). `room:create` generates a fresh code and creates.
+   250→   250→- Game start: validates all humans ready (when >1 human), re-orders seats so humans come first (in seat order) then bots, fills remaining seats with bots up to maxPlayers, calls `createInitialState`, broadcasts `game:started` then `game:state`, kicks off bot loop if first seat is a bot.
+   251→   251→- Bot turn flow: `scheduleBotTurn(room)` — clears any existing bot timer, and if current seat is a bot, schedules a `setTimeout(botThinkDelay())` that:
+   252→   252→  - phase `roll` → `applyRoll`, broadcast, recurse.
+   253→   253→  - phase `move` → `chooseBotMove` → `applyMove`, broadcast, recurse.
+   254→   254→  - phase `gameover` → `endGame`, broadcast `game:over`, stop.
+   255→   255→  Only ONE bot timer per room at any time; cleared on game over / room destroy / state reset.
+   256→   256→- Disconnect handling: marks seat `disconnected=true`, `socketId=null`. Mid-game disconnect = forfeit (push seat to `winners`, pass turn if it was theirs, re-check game over, schedule bot turn if next seat is bot). Lobby disconnect = remove seat. If all humans have left mid-game → endGame immediately. Starts a 60s destroy timer that nukes the room if no human reconnects. Empty rooms are destroyed immediately.
+   257→   257→- Validation: `game:roll` / `game:move` from non-current-seat sockets → ignored + `room:error`. `game:move` with illegal `{tokenId, direction}` (not in `state.legalMoves`) → ignored + `room:error`. `room:add-bot` / `room:remove-bot` / `room:start` are host-only. `room:start` rejected if game already started or fewer than 2 seats filled.
+   258→   258→- Chat: `chat:message { content }` broadcast as `{ userId, username, content, timestamp }` to all sockets in the room. Content truncated to 500 chars.
+   259→   259→
+   260→   260→Verification:
+   261→   261→- `bun install` succeeded (socket.io@4.8.4, @types/socket.io@3.0.2, bun-types@1.4.3).
+   262→   262→- `bun run dev` boots cleanly on port 3003.
+   263→   263→- Smoke-tested via socket.io-client: created a 4-seat room (1 human + 3 bots), started the game, observed the engine emitting `roll`/`move`/`pass`/`turn` events cycling through Alice + 3 bots correctly — including auto-pass on no-moves, re-roll on 6, three-sixes rule, captures, and bot AI choosing forward moves. Disconnect correctly triggered `game:over` when the only human left.
+   264→   264→
+   265→   265→How to start:
+   266→   266→```bash
+   267→   267→cd /home/z/my-project/mini-services/game-service
+   268→   268→bun install     # one-time
+   269→   269→bun run dev     # boots on port 3003 with hot reload
+   270→   270→```
+   271→   271→The service is currently running in the background (PID via `bun --hot index.ts`).
+   272→   272→
+   273→   273→Stage Summary:
+   274→   274→- The game-service is the **single authority** for game-state transitions during live play. The Next.js API will persist final results to the DB separately after `game:over`.
+   275→   275→- Frontend (Task 7) connects with `io('/?XTransformPort=3003', { transports: ['websocket','polling'] })`.
+   276→   276→- All event names below are FINAL — Task 7 should wire the client to exactly these.
+   277→   277→
+   278→   278→=== EVENT NAMES (FINAL) ===
+   279→   279→
+   280→   280→Server → Client:
+   281→   281→- `room:state`     — full room snapshot { id, code, mode, maxPlayers, botCount, seats[], gameState, hostUserId, yourSeat, started, phase }
+   282→   282→- `room:joined`    — { roomId, code, seat, mode, maxPlayers }  (sent only to the joining socket)
+   283→   283→- `room:error`     — { message }
+   284→   284→- `game:started`   — { gameState }                                (broadcast to room)
+   285→   285→- `game:state`     — full GameState object                        (broadcast on every state change)
+   286→   286→- `game:event`     — last GameEvent from engine                   (broadcast alongside game:state)
+   287→   287→- `game:over`      — { winners: number[], players: Player[] }     (broadcast on game end)
+   288→   288→
+   289→   289→Client → Server:
+   290→   290→- `room:create`    — { userId, username, mode?, maxPlayers? }     → host creates a fresh-code room
+   291→   291→- `room:join`      — { code, userId, username, mode?, maxPlayers? } → join existing room, or create with that code if absent
+   292→   292→- `room:leave`     — (no payload)                                  → leave room (forfeit if mid-game)
+   293→   293→- `room:ready`     — (no payload)                                  → toggle ready (humans only)
+   294→   294→- `room:start`     — (no payload, host only)                      → start the game (fills bots to maxPlayers)
+   295→   295→- `room:add-bot`   — (no payload, host only)                      → add a bot to the next free seat
+   296→   296→- `room:remove-bot`— (no payload, host only)                      → remove the highest-seat bot
+   297→   297→- `game:roll`      — (no payload)                                 → current human player rolls dice
+   298→   298→- `game:move`      — { tokenId: number, direction: 'forward'|'backward' }  → current human player moves
+   299→   299→- `game:forfeit`   — (no payload)                                  → player forfeits mid-game (tokens stay, turn skips them)
+   300→   300→- `chat:message`   — { content: string }                          → broadcast chat message to room
+   301→   301→
+   302→   302→=== FILES ===
+   303→   303→- /home/z/my-project/mini-services/game-service/package.json
+   304→   304→- /home/z/my-project/mini-services/game-service/index.ts            (the socket.io server + all event handlers + bot loop)
+   305→   305→- /home/z/my-project/mini-services/game-service/service.log        (runtime log; truncated on each restart)
+   306→   306→
+   307→   307→Notes for Task 7 (UI agent):
+   308→   308→- The GameState shape matches `src/lib/ludo/engine.ts` exactly — import the type from there for the client.
+   309→   309→- `game:state` is broadcast on EVERY state change, so the UI can simply re-render from it (no patching needed).
+   310→   310→- `game:event` carries the engine's `lastEvent` for animations/sounds (types: `roll|move|pass|turn|capture|finish|gameover`).
+   311→   311→- The room snapshot's `yourSeat` field tells the client which seat they are; compare with `gameState.currentSeat` to know whose turn it is.
+   312→   312→- For bot seats, the client should disable roll/move buttons (the server will reject those events with `room:error` anyway).
+   313→   313→- Chat is room-scoped; broadcast to everyone including bots (bots don't chat).
+   314→   314→
+   315→   315→---
+   316→   316→
+   317→   317→Task ID: 6
+   318→   318→Agent: lobby-agent
+   319→   319→Task: Game Lobby (create / join / list / preview / leave / start / finish games)
+   320→   320→
+   321→   321→Work Log:
+   322→   322→- Inspected existing scaffold + Task 1 schema, Task 4-a's `@/lib/auth`, Task 1's
+   323→   323→  `@/lib/ludo/bot` (for `randomBotName`).
+   324→   324→- Created `src/lib/lobby.ts` with: `generateRoomCode()` (6-char A–Z/2–9 alphabet,
+   325→   325→  no 0/O/1/I ambiguity), `generateUniqueRoomCode()` retry helper,
+   326→   326→  `toLobbyGameDTO()` serializer, `SEAT_TO_PLAYER_FIELD` map, `SEAT_COLORS`,
+   327→   327→  and DTO interfaces.
+   328→   328→- Built 7 API routes (all auth-guarded, idempotent where appropriate):
+   329→   329→  - POST `/api/lobby`           — creates Game row + GamePlayer rows for host
+   330→   330→    (seat 0) and bots (seats 1..botCount). Validates mode/maxPlayers/botCount.
+   331→   331→    Returns `{game, code}`.
+   332→   332→  - GET  `/api/lobby`           — current user's 20 most recent games (matched
+   333→   333→    by player1..4Id OR GamePlayer.userId).
+   334→   334→  - GET  `/api/lobby/active`    — joinable waiting games (has ≥1 human, not full),
+   335→   335→    trimmed to 20.
+   336→   336→  - GET  `/api/lobby/[code]`    — full game + players by room code (preview).
+   337→   337→  - POST `/api/lobby/[code]/join`  — assigns next free seat, sets playerNId on
+   338→   338→    Game. Idempotent for already-joined users.
+   339→   339→  - POST `/api/lobby/[code]/leave`  — removes GamePlayer; if host leaves with
+   340→   340→    other humans remaining, promotes next human to seat 0; if no humans remain,
+   341→   341→    deletes the waiting room entirely.
+   342→   342→  - POST `/api/lobby/[code]/start`  — host-only; sets status='playing',
+   343→   343→    startedAt=now(). Returns 403 for non-host.
+   344→   344→  - POST `/api/lobby/[code]/finish`  — accepts `{winners: number[]}` (seats in
+   345→   345→    finish order); sets status='finished', finishedAt, winnerId (first winner's
+   346→   346→    userId, or null if first winner is a bot), GamePlayer.finalRank per seat,
+   347→   347→    and updates User.stats: gamesPlayed+1 for all human participants,
+   348→   348→    wins+1 for 1st-place human, losses+1 for other humans. Idempotent.
+   349→   349→- Built 4 UI components (all self-contained, shadcn/ui-based, mobile-responsive):
+   350→   350→  - `src/components/lobby/create-game-dialog.tsx`
+   351→   351→    Exports: `CreateGameDialog`, `gotoRoom`.
+   352→   352→    Props: `trigger?: React.ReactNode` (default = "Create Game" button).
+   353→   353→    Form: mode radio (Classic/Twist with tooltip explanation), max-players
+   354→   354→    select (2/3/4), bot-count select (0..maxPlayers-1, auto-clamped). On
+   355→   355→    submit → POST /api/lobby → `window.location.search = '?room=<code>'`.
+   356→   356→  - `src/components/lobby/join-game-dialog.tsx`
+   357→   357→    Exports: `JoinGameDialog`.
+   358→   358→    Two paths: 6-char room code entry (auto-normalized) OR browse open rooms
+   359→   359→    (GET /api/lobby/active) with mode/players/bots preview and a Join button
+   360→   360→    per row. Self-hosted QueryClient + SonnerToaster + thin custom scrollbar.
+   361→   361→  - `src/components/lobby/game-history.tsx`
+   362→   362→    Exports: `GameHistory`. Fetches GET /api/lobby. Renders last 20 games with
+   363→   363→    date, mode, result (Win/Loss/Unfinished), players, bots. Empty/loading/
+   364→   364→    error states. Mobile-responsive with max-h-96 scroll list.
+   365→   365→  - `src/components/lobby/quick-play.tsx`
+   366→   366→    Exports: `QuickPlay`. Dashboard card with two big buttons:
+   367→   367→    "Play vs Bots" (one-click: creates 4-player twist game with 3 bots,
+   368→   368→    navigates to room) and "Create Private Room" (composes CreateGameDialog
+   369→   369→    with custom trigger).
+   370→   370→
+   371→   371→API endpoint list (for downstream agents / Task 8 page.tsx):
+   372→   372→- POST   /api/lobby                        → { game: LobbyGameDTO, code }
+   373→   373→- GET    /api/lobby                        → { games: LobbyGameDTO[] }
+   374→   374→- GET    /api/lobby/active                 → { games: LobbyGameDTO[] }
+   375→   375→- GET    /api/lobby/[code]                 → { game: LobbyGameDTO }
+   376→   376→- POST   /api/lobby/[code]/join            → { game: LobbyGameDTO }
+   377→   377→- POST   /api/lobby/[code]/leave           → { left: boolean, game: LobbyGameDTO | null }
+   378→   378→- POST   /api/lobby/[code]/start           → { game: LobbyGameDTO }
+   379→   379→- POST   /api/lobby/[code]/finish          → { game: LobbyGameDTO }
+   380→   380→                                            Body: { winners: number[] }
+   381→   381→
+   382→   382→Component exports (for downstream agents / Task 8 page.tsx):
+   383→   383→- `import { CreateGameDialog, gotoRoom } from '@/components/lobby/create-game-dialog'`
+   384→   384→- `import { JoinGameDialog } from '@/components/lobby/join-game-dialog'`
+   385→   385→- `import { GameHistory } from '@/components/lobby/game-history'`
+   386→   386→- `import { QuickPlay } from '@/components/lobby/quick-play'`
+   387→   387→
+   388→   388→Stage Summary:
+   389→   389→- All 7 lobby API routes work end-to-end (verified via curl with real
+   390→   390→  NextAuth session, real Prisma reads/writes against SQLite).
+   391→   391→- All 4 UI components compile cleanly; built to be dropped into Task 8's
+   392→   392→  dashboard page.
+   393→   393→- Temporary stub at `src/components/game/game-room.tsx` lets the dev server
+   394→   394→  compile while Task 7 finishes the real GameRoom. Task 7 SHOULD OVERWRITE
+   395→   395→  this stub. (The stub accepts the documented props: `{ code, userId,
+   396→   396→  username, onExit }`.)
+   397→   397→
+   398→   398→Lint status:
+   399→   399→- All files in my scope pass `bunx eslint` cleanly.
+   400→   400→- Project-wide `bun run lint` shows 1 error + 1 warning in
+   401→   401→  `src/components/game/dice.tsx` and `src/lib/ludo/client.ts` — outside my
+   402→   402→  scope (Task 5/7).
+   403→   403→
+   404→   404→Key conventions:
+   405→   405→- DTO shape `LobbyGameDTO` (in `src/lib/lobby.ts`) is the canonical shape
+   406→   406→  returned by all lobby endpoints. The React UI consumes it directly.
+   407→   407→- Room codes are 6 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (32 chars,
+   408→   408→  no 0/O/1/I). All UI inputs normalize to this alphabet automatically.
+   409→   409→- `?room=<code>` is the navigation convention used by create/join/quick-play
+   410→   410→  to enter a game room; Task 8's `page.tsx` reads it.
+   411→   411→- Bots are created at room-creation time as `GamePlayer` rows with
+   412→   412→  `isBot=true, userId=null, botName=<randomBotName()>`. Their seats occupy
+   413→   413→  1..botCount.
+   414→   414→
+   415→   415→---
+   416→   416→Task ID: 7
+   417→   417→Agent: ludo-board-ui-subagent
+   418→   418→Task: Build the Ludo Stars board UI — the main game room + 15x15 board + dice + chat + game-over modal + lobby.
+   419→   419→
+   420→   420→Work Log:
+   421→   421→- Read `/home/z/my-project/worklog.md` (Task 1 by main agent) and confirmed the engine + board geometry exports.
+   422→   422→- Read `src/lib/ludo/engine.ts` fully — confirmed `GameState`, `Token`, `LegalMove`, `GameEvent`, `Color`, `COLORS`, `COLOR_START`, `isInBase`, `isFinished`, `isOnTrack`, `isInHomeColumn`, `progress`.
+   423→   423→- Read `src/lib/ludo/board.ts` fully — confirmed `TRACK_CELLS`, `HOME_COLUMN_CELLS`, `BASE_DOCKS`, `BASE_REGIONS`, `CENTER_CELL`, `STAR_CELLS`, `posToCell`, `baseDockCell`, `cellToTrackIndex`, `COLOR_BG`, `COLOR_BG_SOFT`, `COLOR_BORDER`, `COLOR_TEXT`, `COLOR_DOT`.
+   424→   424→- Waited for Task 5 to finish; then read `mini-services/game-service/index.ts` to confirm the exact socket event names + payload shapes (see "Socket events" table below).
+   425→   425→- Installed `socket.io-client` (it was missing from package.json).
+   426→   426→- Built all 9 components/files in `src/components/game/` + `src/lib/ludo/client.ts`.
+   427→   427→
+   428→   428→Files created:
+   429→   429→- `src/lib/ludo/client.ts` — exports `createGameSocket()`, `useGameRoom()` hook (returns `{ socket, connected, room, gameState, lastEvent, chat, error, mySeat, isMyTurn, legalMoves, roll, move, sendMessage, setReady, startGame, addBot, removeBot, leaveRoom }`), types `RoomState`, `SeatInfo`, `ChatMessage`, `UseGameRoomResult`, and constants `EV`, `SERVER_EV`, `GAME_SERVICE_PORT`.
+   430→   430→- `src/components/game/token.tsx` — exports `Token` (framer-motion animated colored pawn; accepts `size` as number (px) or string (%)).
+   431→   431→- `src/components/game/dice.tsx` — exports `Dice` (lucide dice icons + Roll button; glows on local player's turn).
+   432→   432→- `src/components/game/direction-picker.tsx` — exports `DirectionPicker` (shadcn Popover; "↑ Forward (N)" / "↓ Backward (N)" with capture count badges).
+   433→   433→- `src/components/game/player-card.tsx` — exports `PlayerCard` (avatar + color dot + name + BOT/YOU badges + turn highlight + rank crown).
+   434→   434→- `src/components/game/chat-panel.tsx` — exports `ChatPanel` (ScrollArea + Input + Send button; auto-scrolls to bottom; system vs. user message styling).
+   435→   435→- `src/components/game/game-over-modal.tsx` — exports `GameOverModal` (final rankings + CSS-only confetti + Play Again / Exit).
+   436→   436→- `src/components/game/ludo-board.tsx` — exports `LudoBoard` (15x15 grid via inline `gridTemplateColumns: repeat(15, 1fr)`; 4 colored triangles in the center via `clip-path`; tokens absolutely-positioned overlays with framer-motion `layout` animation; legal-move destinations pulse-highlighted with `ring-2 ring-emerald-400 animate-pulse`).
+   437→   437→- `src/components/game/game-room.tsx` — exports `GameRoom` (top-level component; props `{ code, userId, username, onExit }`). Lobby view shows room code (copyable), seat list (with Ready/Add Bot/Remove Bot/Start buttons for host), and chat. In-game view shows 4 player cards around the board + Dice + chat + last-event ticker.
+   438→   438→
+   439→   439→Lint status:
+   440→   440→- `bun run lint` — passes cleanly (0 errors, 0 warnings) for all files in my scope.
+   441→   441→- `bunx tsc --noEmit` — passes cleanly for all files in my scope.
+   442→   442→
+   443→   443→Stage Summary:
+   444→   444→- All 9 files written and verified.
+   445→   445→- Socket event names in `client.ts` MATCH what Task 5's `mini-services/game-service/index.ts` actually emits (confirmed by reading the server source).
+   446→   446→- The board is responsive (`max-w-[min(95vw,600px)] aspect-square`), uses framer-motion for token movement and dice roll, and includes the twist-mode direction picker.
+   447→   447→- The lobby, in-game, and game-over states all render with the documented UX.
+   448→   448→- The `GameRoom` props match the stub Task 6 left behind (`{ code, userId, username, onExit }`) so Task 8's page.tsx can drop it in without changes.
+   449→   449→
+   450→   450→Socket events used in `src/lib/ludo/client.ts` (exact names):
+   451→   451→
+   452→   452→Client → server (the `EV` constant):
+   453→   453→- `room:join` — payload `{ code, userId, username }`
+   454→   454→- `room:ready` — no payload
+   455→   455→- `room:start` — no payload
+   456→   456→- `room:add-bot` — no payload
+   457→   457→- `room:remove-bot` — no payload (server removes the last-added bot)
+   458→   458→- `room:leave` — no payload
+   459→   459→- `game:roll` — no payload
+   460→   460→- `game:move` — payload `{ tokenId, direction }`
+   461→   461→- `chat:message` — payload `{ content }`
+   462→   462→
+   463→   463→Server → client (the `SERVER_EV` constant):
+   464→   464→- `room:state` — payload `RoomState` (full snapshot — see `RoomState` interface in `client.ts`; key fields: `code`, `mode`, `maxPlayers`, `seats: SeatInfo[]` (only filled seats, no nulls), `gameState: GameState | null`, `hostUserId`, `yourSeat`, `started`, `phase`).
+   465→   465→- `room:joined` — payload `{ roomId, code, seat, mode, maxPlayers }` (metadata only; full state arrives via `room:state`).
+   466→   466→- `room:error` — payload `{ message }`.
+   467→   467→- `game:started` — payload `{ gameState: GameState }` (wrapped).
+   468→   468→- `game:state` — payload `GameState` (direct, not wrapped).
+   469→   469→- `game:event` — payload `GameEvent` (the last event).
+   470→   470→- `game:over` — payload `{ winners: number[], players: Player[] }` (summary, not full state).
+   471→   471→- `chat:message` — payload `{ userId, username, content, timestamp }` (no `id`/`type` — client generates id).
+   472→   472→
+   473→   473→Important payload quirks (confirmed by reading Task 5's server source):
+   474→   474→- `room:state.seats` only contains *filled* seats — empty seats are not present. The LobbyView iterates 0..maxPlayers and looks up `seats.find(s => s.seat === i)` to find empty slots.
+   475→   475→- `room:remove-bot` ignores any payload arg and removes the last-added bot server-side.
+   476→   476→- The local user's seat is provided by the server in `room.yourSeat` (no need to scan seats).
+   477→   477→- `chat:message` from the server has no `id` field; the client synthesizes one (`${timestamp}-${random}`) for React keys.
+   478→   478→- `game:over` does NOT carry a full `GameState`; the client uses the last `game:state` payload (which has `phase: 'gameover'`) and just refreshes `winners`/`players` from the summary.
+   479→   479→
+   480→   480→---
+   481→   481→Task ID: 9
+   482→   482→Agent: main
+   483→   483→Task: Integration, end-to-end agent-browser verification, and fixes.
+   484→   484→
+   485→   485→Work Log:
+   486→   486→- Added `QueryClientProvider` to `src/components/app-providers.tsx` (TanStack Query was used by lobby/friends components but had no provider — caused "No QueryClient set" crash on dashboard).
+   487→   487→- Fixed socket.io race condition in `src/lib/ludo/client.ts`: removed the `joinedRef` guard that prevented re-join on reconnect. Now always emits `room:join` on every `connect` event (server is idempotent). Also handles the case where socket.io auto-connects before the effect registers the `connect` handler.
+   488→   488→- Fixed game-service `room:join` handler to allow mid-game reconnection for a user who already has a seat (was previously blocked with "Game already in progress"). This is critical for React StrictMode dev double-mounts.
+   489→   489→- Added grace periods in the game-service disconnect handler:
+   490→   490→  - `EMPTY_ROOM_DESTROY_GRACE_MS` (5s): empty rooms aren't destroyed immediately, absorbing StrictMode reconnects.
+   491→   491→  - `PLAYER_DISCONNECT_FORFEIT_MS` (15s): a disconnected human player isn't immediately forfeited — they get 15s to reconnect.
+   492→   492→  - `endGameTimer`: when all humans disconnect mid-game, the game isn't ended immediately — it waits 60s for a reconnect.
+   493→   493→- Added auto-bot-fill + auto-start effect to `src/components/game/game-room.tsx`: reads `bots` and `autostart` URL query params (set by "Play vs Bots" and "Create Private Room") and pre-fills bot seats, then auto-starts when requested.
+   494→   494→- Updated `src/components/lobby/quick-play.tsx` to navigate to `?room=CODE&bots=3&autostart=1` for the one-click "Play vs Bots" flow.
+   495→   495→- Updated `src/components/lobby/create-game-dialog.tsx` to pass the chosen `bots` count via URL.
+   496→   496→- Added diagnostic `console.log` calls to the game-service roll/move/reconnect handlers for monitoring.
+   497→   497→
+   498→   498→Verification (agent-browser, via Caddy on port 81):
+   499→   499→- ✅ Landing page renders with auth form (Login + Create Account tabs).
+   500→   500→- ✅ Register flow: created "alice" account → auto-login → dashboard.
+   501→   501→- ✅ Dashboard renders: TopNav, stats cards, Quick Play, Game History, Friends panel (3 tabs), Create/Join dialogs, sticky footer.
+   502→   502→- ✅ "Play vs Bots" creates a 4-player twist room, auto-fills 3 bots, auto-starts.
+   503→   503→- ✅ Game board renders: 15x15 grid, 16 tokens (4 per color), 4 colored bases, center finish, dice, chat panel, player cards.
+   504→   504→- ✅ Dice rolling works: alice rolled 6 → 4 legal moves (release tokens). Rolled 1 → forward move. Rolled 6 again → 5 legal moves (token on track had BOTH forward + backward).
+   505→   505→- ✅ Forward moves work: `seat 0 (alice) moved token 0 forward`.
+   506→   506→- ✅ **TWIST RULE VERIFIED**: direction picker appeared with "Forward (6)" + "Backward (6)" buttons; clicking Backward executed `seat 0 (alice) moved token 0 backward`.
+   507→   507→- ✅ Bots auto-play: `BOT seat 3 (Bot Zeta) moved token 12 forward`.
+   508→   508→- ✅ No runtime errors in dev.log or browser console.
+   509→   509→
+   510→   510→Stage Summary:
+   511→   511→- The full stack is operational: auth → dashboard → lobby → game room → live play with bots.
+   512→   512→- The custom "twist" rule (tokens can move backward from their start point) is fully implemented in the engine and verified end-to-end in the browser.
+   513→   513→- All 5 subagent-produced feature areas integrate cleanly.
+   514→   514→- Dev server runs on port 3000 (Next.js), game-service on port 3003 (socket.io), Caddy on port 81 routes both.
+   515→   515→

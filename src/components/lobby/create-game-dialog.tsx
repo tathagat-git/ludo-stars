@@ -210,6 +210,8 @@ export function CreateGameDialog({ trigger }: CreateGameDialogProps) {
               <SelectItem value="2">2 players</SelectItem>
               <SelectItem value="3">3 players</SelectItem>
               <SelectItem value="4">4 players</SelectItem>
+              <SelectItem value="5">5 players</SelectItem>
+              <SelectItem value="6">6 players</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -16,15 +16,25 @@
 //   -999          : "invalid move" sentinel returned by moveForward when a
 //                   forward move would overshoot the finish.
 
-export type Color = 'red' | 'green' | 'yellow' | 'blue'
+export type Color = 'red' | 'green' | 'yellow' | 'blue' | 'purple' | 'orange'
 
-export const COLORS: Color[] = ['red', 'green', 'yellow', 'blue']
+// Seats 0..3 use the standard 4 colors (corner bases on the 15x15 board).
+// Seats 4 & 5 (purple, orange) are the extra colors for 5-6 player games;
+// their bases + home columns render as off-board strips beside the board
+// (see board.ts + PlayerCard), but they share the same 52-cell track.
+export const COLORS: Color[] = ['red', 'green', 'yellow', 'blue', 'purple', 'orange']
 
+// Start positions on the 52-cell track (clockwise).
+//   red=0, green=13, yellow=26, blue=39  → every 13 (standard 4-color Ludo).
+//   purple=6   (between red and green)
+//   orange=32  (between yellow and blue)
 export const COLOR_START: Record<Color, number> = {
   red: 0,
   green: 13,
   yellow: 26,
   blue: 39,
+  purple: 6,
+  orange: 32,
 }
 
 // Home entry = the square just before the start square (going clockwise).
@@ -34,10 +44,13 @@ export const HOME_ENTRY: Record<Color, number> = {
   green: 12,
   yellow: 25,
   blue: 38,
+  purple: 5,
+  orange: 31,
 }
 
-// Safe squares: 4 colored start squares + 4 star squares.
-export const SAFE_SQUARES = new Set<number>([0, 8, 13, 21, 26, 34, 39, 47])
+// Safe squares: the 4 standard start squares + 4 star squares + the 2 extra
+// color start squares (purple & orange) for 5-6 player games.
+export const SAFE_SQUARES = new Set<number>([0, 8, 13, 21, 26, 34, 39, 47, 6, 32])
 
 export const POS_BASE = -1
 export const POS_FINISHED = 200
@@ -67,7 +80,7 @@ export type TurnPhase = 'roll' | 'move' | 'gameover'
 export interface GameState {
   gameId: string
   mode: 'classic' | 'twist' // twist = backward moves allowed
-  maxPlayers: number // 2 | 3 | 4
+  maxPlayers: number // 2 | 3 | 4 | 5 | 6
   players: Player[]
   tokens: Token[] // length = maxPlayers * 4
   currentSeat: number

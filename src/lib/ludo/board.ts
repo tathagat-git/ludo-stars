@@ -84,10 +84,11 @@ export const TRACK_CELLS: Cell[] = [
   { row: 14, col: 7 }, // 51 Red homeEntry
 ]
 
-// Home columns: each color has 6 cells leading from the track perimeter
-// to the center (7,7). Position 100 = first cell, 105 = center (finish).
-// Order: from track → center.
-export const HOME_COLUMN_CELLS: Record<Color, Cell[]> = {
+// Home columns: each standard color has 6 cells leading from the track
+// perimeter to the center (7,7). Position 100 = first cell, 105 = center.
+// Order: from track → center. Purple & orange have NO on-grid home column
+// (they render off-board in the PlayerCard), so their entries are empty.
+export const HOME_COLUMN_CELLS: Partial<Record<Color, Cell[]>> = {
   // Red: from (13,7) going UP to (8,7)
   red: [
     { row: 13, col: 7 }, // 100
@@ -128,6 +129,14 @@ export const HOME_COLUMN_CELLS: Record<Color, Cell[]> = {
 
 // Token "docks" inside each base (4 cells per color, where the 4 tokens sit
 // before being released).
+//
+// For the 4 standard colors (red/green/yellow/blue) the docks sit inside the
+// corner base regions on the 15x15 grid. For purple & orange (the extra
+// 5-6 player colors) there is no room on the grid, so their docks are
+// rendered off-board inside the PlayerCard — these dock entries are still
+// defined (used by the off-board strip renderer) but use placeholder cells
+// that the board grid simply never reads (the board skips purple/orange
+// tokens that are in base/home-column).
 export const BASE_DOCKS: Record<Color, Cell[]> = {
   red: [
     { row: 10, col: 2 },
@@ -153,44 +162,80 @@ export const BASE_DOCKS: Record<Color, Cell[]> = {
     { row: 12, col: 10 },
     { row: 12, col: 12 },
   ],
+  // Purple & orange docks are placeholders (-1,-1) — rendered off-board by
+  // the PlayerCard's mini base strip, never on the 15x15 grid.
+  purple: [
+    { row: -1, col: -1 },
+    { row: -1, col: -1 },
+    { row: -1, col: -1 },
+    { row: -1, col: -1 },
+  ],
+  orange: [
+    { row: -1, col: -1 },
+    { row: -1, col: -1 },
+    { row: -1, col: -1 },
+    { row: -1, col: -1 },
+  ],
 }
 
-// Base region (the 5x5 colored area in each corner).
-export const BASE_REGIONS: Record<Color, { row: number; col: number; color: Color }> = {
+// Base region (the 5x5 colored area in each corner). Only the 4 standard
+// colors have on-grid base regions; purple & orange are rendered off-board.
+export const BASE_REGIONS: Partial<Record<Color, { row: number; col: number; color: Color }>> = {
   red: { row: 11, col: 3, color: 'red' },
   green: { row: 3, col: 3, color: 'green' },
   yellow: { row: 3, col: 11, color: 'yellow' },
   blue: { row: 11, col: 11, color: 'blue' },
 }
 
+// Colors that render their base + home column on the 15x15 grid (the 4
+// standard corner colors). Purple & orange render off-board.
+export const ON_BOARD_COLORS: ReadonlySet<Color> = new Set<Color>(['red', 'green', 'yellow', 'blue'])
+
+/// True if a color's base + home column is rendered on the 15x15 grid.
+export function isOnBoardColor(color: Color): boolean {
+  return ON_BOARD_COLORS.has(color)
+}
+
 // Center finish cell (the dead center of the 15x15 grid).
 export const CENTER_CELL: Cell = { row: 7, col: 7 }
 
 /// Convert an encoded token position to a (row, col) cell on the 15x15 grid.
-export function posToCell(pos: number, seat: number): Cell {
+/// Returns `null` when the token should be rendered OFF the grid — this
+/// happens for purple & orange (the 5-6 player extra colors) when they are
+/// in base or in their home column. Those tokens are drawn inside their
+/// PlayerCard's mini base/home strip instead. Track positions and the
+/// center finish are always on-grid for every color.
+export function posToCell(pos: number, seat: number): Cell | null {
   const color = COLORS[seat]
+  if (!color) return null
   if (pos === -1) {
-    // In base — return first dock; the UI layer will pick the correct dock
-    // based on token index.
-    return BASE_DOCKS[color!][0]!
+    // In base. Standard colors: dock on-grid. Purple/orange: off-grid.
+    if (!isOnBoardColor(color)) return null
+    return BASE_DOCKS[color]![0]!
   }
   if (pos === 200) {
-    // Finished — return the center.
+    // Finished — every color finishes at the center.
     return CENTER_CELL
   }
   if (pos >= 0 && pos <= 51) {
+    // On the shared track — always on-grid for every color.
     return TRACK_CELLS[pos]!
   }
   if (pos >= 100 && pos <= 105) {
-    return HOME_COLUMN_CELLS[color!][pos - 100]!
+    // Home column. Standard colors: on-grid. Purple/orange: off-grid strip.
+    if (!isOnBoardColor(color)) return null
+    const cells = HOME_COLUMN_CELLS[color]
+    return cells ? cells[pos - 100]! : null
   }
   return CENTER_CELL
 }
 
-/// Get the dock cell for a specific token in base.
-export function baseDockCell(seat: number, tokenIndex: number): Cell {
+/// Get the dock cell for a specific token in base. Returns null for the
+/// off-board colors (purple/orange) — caller should render those off-board.
+export function baseDockCell(seat: number, tokenIndex: number): Cell | null {
   const color = COLORS[seat]
-  return BASE_DOCKS[color!][tokenIndex % 4]!
+  if (!color || !isOnBoardColor(color)) return null
+  return BASE_DOCKS[color]![tokenIndex % 4]!
 }
 
 // Color → Tailwind class map for cell backgrounds.
@@ -199,6 +244,8 @@ export const COLOR_BG: Record<Color, string> = {
   green: 'bg-green-500',
   yellow: 'bg-yellow-400',
   blue: 'bg-blue-500',
+  purple: 'bg-purple-500',
+  orange: 'bg-orange-500',
 }
 
 export const COLOR_BG_SOFT: Record<Color, string> = {
@@ -206,6 +253,8 @@ export const COLOR_BG_SOFT: Record<Color, string> = {
   green: 'bg-green-100',
   yellow: 'bg-yellow-100',
   blue: 'bg-blue-100',
+  purple: 'bg-purple-100',
+  orange: 'bg-orange-100',
 }
 
 export const COLOR_BORDER: Record<Color, string> = {
@@ -213,6 +262,8 @@ export const COLOR_BORDER: Record<Color, string> = {
   green: 'border-green-500',
   yellow: 'border-yellow-400',
   blue: 'border-blue-500',
+  purple: 'border-purple-500',
+  orange: 'border-orange-500',
 }
 
 export const COLOR_TEXT: Record<Color, string> = {
@@ -220,6 +271,8 @@ export const COLOR_TEXT: Record<Color, string> = {
   green: 'text-green-600',
   yellow: 'text-yellow-600',
   blue: 'text-blue-600',
+  purple: 'text-purple-600',
+  orange: 'text-orange-600',
 }
 
 export const COLOR_DOT: Record<Color, string> = {
@@ -227,6 +280,8 @@ export const COLOR_DOT: Record<Color, string> = {
   green: 'bg-green-500',
   yellow: 'bg-yellow-400',
   blue: 'bg-blue-500',
+  purple: 'bg-purple-500',
+  orange: 'bg-orange-500',
 }
 
 /// Star icon position (the 4 "safe" non-start squares), for rendering a

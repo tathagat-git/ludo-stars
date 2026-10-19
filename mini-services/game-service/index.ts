@@ -639,6 +639,7 @@ io.on('connection', (socket: Socket) => {
       return emitRoomError(socket, 'Missing code/userId/username')
     }
     const code = payload.code.toUpperCase()
+    console.log(`[room:join] ${payload.username} → ${code} (mode=${payload.mode}, maxPlayers=${payload.maxPlayers})`)
 
     // Leave any previous room.
     const prev = sockets.get(socket.id)
@@ -930,7 +931,7 @@ io.on('connection', (socket: Socket) => {
 function clampMaxPlayers(n?: number): number {
   if (!n || Number.isNaN(n)) return 4
   if (n < 2) return 2
-  if (n > 4) return 4
+  if (n > 6) return 6 // support 5 & 6 player games
   return Math.floor(n)
 }
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Github, Heart, Twitter } from "lucide-react";
+import { Heart, Instagram, Twitter } from "lucide-react";
 
 /**
  * Sticky footer used on every page. Mounts at the bottom of the
@@ -21,13 +21,13 @@ export function Footer() {
           className="flex items-center gap-4 text-xs sm:text-sm"
         >
           <a
-            href="https://github.com/ludo-stars"
+            href="https://instagram.com/ludostars"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
           >
-            <Github className="h-4 w-4" aria-hidden />
-            GitHub
+            <Instagram className="h-4 w-4" aria-hidden />
+            Instagram
           </a>
           <a
             href="https://twitter.com/ludostars"

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { Landing } from "@/components/landing/landing";
 import { Dashboard, type DashboardUser } from "@/components/dashboard/dashboard";
 import { GameHost } from "@/components/dashboard/game-host";
@@ -19,13 +20,13 @@ import { GameHost } from "@/components/dashboard/game-host";
  *
  * Notes:
  *   - In Next.js 16 `searchParams` is a Promise; we `await` it.
+ *   - When joining a room, we look up the persisted Game row (created by the
+ *     lobby API) to read its `mode` + `maxPlayers` and pass them down to the
+ *     GameRoom so the websocket `room:join` creates the room with the right
+ *     configuration (the websocket service otherwise defaults to 4 players).
  *   - `onExit` for the game room is a client concern (functions can't be
  *     passed from a server component to a client component), so we render
  *     `<GameHost />` which owns the client router and forwards `onExit`.
- *   - Navigating to a room is done by setting `?room=<code>` (soft nav
- *     via `router.push('/?room=CODE')` or hard via
- *     `window.location.search = '?room=CODE'`); exiting is
- *     `router.push('/')` or `window.location.search = ''`.
  */
 
 interface HomePageProps {
@@ -57,7 +58,33 @@ export default async function Home({ searchParams }: HomePageProps) {
 
   // Logged in + room code → game room.
   if (room) {
-    return <GameHost code={room} userId={userId} username={username} />;
+    // Look up the persisted Game row to read mode + maxPlayers so the
+    // websocket room is created with the correct configuration. If the row
+    // is missing (e.g., room created directly via socket without the lobby
+    // API), fall back to the defaults (twist, 4 players).
+    let mode: "classic" | "twist" = "twist";
+    let maxPlayers = 4;
+    try {
+      const game = await db.game.findUnique({
+        where: { code: room.toUpperCase() },
+        select: { mode: true, maxPlayers: true },
+      });
+      if (game) {
+        mode = game.mode === "classic" ? "classic" : "twist";
+        maxPlayers = game.maxPlayers;
+      }
+    } catch {
+      // DB read failure is non-fatal — use defaults.
+    }
+    return (
+      <GameHost
+        code={room}
+        userId={userId}
+        username={username}
+        mode={mode}
+        maxPlayers={maxPlayers}
+      />
+    );
   }
 
   // Logged in, no room → dashboard.

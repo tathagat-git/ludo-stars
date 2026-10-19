@@ -36,7 +36,7 @@ function validateCreate(body: CreateBody): {
   botCount: number
 } | null {
   const mode = body.mode === 'twist' ? 'twist' : 'classic'
-  const maxPlayers = [2, 3, 4].includes(body.maxPlayers as number)
+  const maxPlayers = [2, 3, 4, 5, 6].includes(body.maxPlayers as number)
     ? (body.maxPlayers as number)
     : 4
   const rawBot = Number(body.botCount ?? 0)
@@ -77,12 +77,12 @@ export async function POST(req: Request) {
   // Create the Game row + GamePlayer rows in a single transaction.
   const game = await db.$transaction(async (tx) => {
     // Build GamePlayer rows: seat 0 = host (human), seats 1..botCount = bots.
-    const playerRows = [
+    const playerRows: { seat: number; isBot: boolean; userId: string | null; botName: string | null }[] = [
       {
         seat: 0,
         isBot: false,
         userId,
-        botName: null as string | null,
+        botName: null,
       },
     ]
     for (let i = 1; i <= botCount; i++) {

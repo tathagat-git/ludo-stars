@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { Star } from 'lucide-react'
 import type { Color } from '@/lib/ludo/engine'
-import { COLOR_BG, COLOR_BORDER } from '@/lib/ludo/board'
+import { COLOR_BG } from '@/lib/ludo/board'
 import { cn } from '@/lib/utils'
 
 interface TokenProps {
@@ -19,6 +19,9 @@ interface TokenProps {
 /// A single colored pawn/circle token. Uses framer-motion for entrance
 /// animation. The parent is responsible for positioning this token on the
 /// board (the token itself only renders its visual content).
+///
+/// Visual polish: a subtle top-down radial highlight gives the pawn a soft
+/// 3D / glossy look (à la Ludo King's glossy marbles).
 export function Token({
   color,
   tokenId,
@@ -47,7 +50,7 @@ export function Token({
       aria-label={`Token ${tokenId + 1} (${color})${isLegal ? ' — legal move available' : ''}`}
       disabled={!clickable}
       className={cn(
-        'relative grid place-items-center rounded-full border-2 shadow-md transition-shadow',
+        'relative grid place-items-center overflow-hidden rounded-full border-2 shadow-md transition-shadow',
         'border-white',
         COLOR_BG[color],
         clickable && 'cursor-pointer ring-2 ring-offset-1 ring-emerald-400/70 hover:ring-emerald-400',
@@ -56,7 +59,13 @@ export function Token({
       )}
       style={{ width: size, height: size }}
     >
-      {/* inner highlight dot */}
+      {/* glossy top-left highlight (3D marble shine) */}
+      <span
+        className="pointer-events-none absolute rounded-full bg-gradient-to-br from-white/70 to-transparent"
+        style={{ width: '50%', height: '50%', top: '8%', left: '10%' }}
+        aria-hidden
+      />
+      {/* inner highlight dot (kept for the classic pawn look) */}
       <span
         className="absolute rounded-full bg-white/70"
         style={{ width: dotSize, height: dotSize, top: dotTop, left: dotLeft }}
