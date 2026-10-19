@@ -108,7 +108,7 @@ bun install   # first time only
 bun run dev   # hot-reload on :3003
 ```
 
-### Production build
+### Production build (self-hosted)
 
 ```bash
 # Build the Next.js app
@@ -123,6 +123,50 @@ bun run start
 ```
 
 Set `NODE_ENV=production` and update `NEXTAUTH_URL` in `.env` to your public domain.
+
+## ☁️ Deploy to Render (free tier, one-click)
+
+Ludo Stars ships with a `render.yaml` Blueprint that deploys **3 free services** automatically:
+
+1. **PostgreSQL database** (`ludo-stars-db`) — free, 1 GB
+2. **Web service** (`ludo-web`) — the Next.js app + APIs (free, 512 MB)
+3. **Web service** (`ludo-game-service`) — the Socket.IO game-service (free, 512 MB)
+
+### Steps
+
+1. **Push to GitHub** — commit the whole project (including `render.yaml`, `Dockerfile`, `mini-services/game-service/Dockerfile`, `prisma/schema.render.prisma`).
+
+2. **Create a Blueprint on Render**:
+   - Go to <https://dashboard.render.com/blueprints>
+   - Click **New Blueprint Instance**
+   - Select your GitHub repo
+   - Render reads `render.yaml` and creates all 3 services automatically
+
+3. **Update the two URL env vars** (after the first deploy, once Render assigns the public URLs):
+   - `ludo-web` → **NEXTAUTH_URL** = `https://ludo-web-xxxx.onrender.com`
+   - `ludo-web` → **NEXT_PUBLIC_GAME_SERVICE_URL** = `https://ludo-game-service-xxxx.onrender.com`
+
+   (Find the exact URLs on each service's page in the Render dashboard.)
+
+4. **Deploy** — Render builds both Docker images, pushes the Postgres schema (`prisma/schema.render.prisma`), and starts the services. You're live in ~5 min.
+
+### Free tier limits
+
+- **~50–100 concurrent players** (512 MB RAM per service is the ceiling, not CPU)
+- Services **sleep after 15 min idle** → first visitor waits ~50 s for cold start
+- **Postgres free DB is deleted after 90 days** — back up or upgrade for $1/mo to keep it
+- To remove the sleep + get dedicated resources, upgrade either web service to the **Starter** plan ($7/mo)
+
+### Why two schemas?
+
+- `prisma/schema.prisma` → **SQLite** (for fast local dev — no Postgres install needed)
+- `prisma/schema.render.prisma` → **PostgreSQL** (for Render production)
+
+Both have identical models. The Render Docker build runs `prisma generate` + `prisma db push` with the Postgres schema. Locally you keep using SQLite. No code changes needed between environments.
+
+### Keeping the game-service warm (optional)
+
+Free Render services sleep after 15 min of no traffic. To prevent the game-service from sleeping (so in-progress games don't drop), set up a free cron ping (e.g. [cron-job.org](https://cron-job.org)) hitting `https://ludo-game-service-xxxx.onrender.com/` every 10 minutes.
 
 ## 📜 Scripts
 

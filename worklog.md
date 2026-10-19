@@ -618,3 +618,31 @@ Verification:
 Stage Summary:
 - The app is production-ready and hostable: `bun run build` succeeds, all code is formatted + linted + type-checked, error boundaries + loading states in place, debug logs removed, README + .env.example documentation complete.
 - To host: set NEXTAUTH_SECRET + NEXTAUTH_URL in .env, run `bun run build && bun run start`, and separately run the game-service (`cd mini-services/game-service && bun run start`).
+
+---
+Task ID: 14
+Agent: main
+Task: Render deployment setup (Postgres schema, configurable game-service URL, Dockerfiles, render.yaml).
+
+Work Log:
+- **Postgres schema**: created `prisma/schema.render.prisma` (identical models to `schema.prisma` but `provider = "postgresql"`). Local dev keeps using SQLite (`schema.prisma`); Render uses the Postgres schema. No code changes needed — Prisma Client API is identical across providers.
+- **Configurable game-service URL**: updated `src/lib/ludo/client.ts` — reads `NEXT_PUBLIC_GAME_SERVICE_URL` env var. If set (production), the client connects directly to that URL. If empty (local dev with Caddy), it falls back to `/?XTransformPort=3003` (the sandbox Caddy gateway pattern). Zero-config for local dev; one env var for production.
+- **PORT env for game-service**: updated `mini-services/game-service/index.ts` — reads `PORT` env var (Render assigns this), defaults to 3003 for local dev.
+- **Dockerfile (web/Next.js)**: multi-stage Bun build. Build stage: `bun install`, `prisma generate --schema=prisma/schema.render.prisma`, `bun run build`. Runtime stage: copies the standalone server + static assets + Prisma client + CLI. CMD: `bun server.js`. Exposes port 3000.
+- **Dockerfile (game-service)**: multi-stage Bun build. Copies the full repo (needed because the game-service imports `../../src/lib/ludo/engine.ts`). CMD: `bun mini-services/game-service/index.ts`. Exposes port 3003.
+- **render.yaml Blueprint**: defines 3 free services — PostgreSQL database (`ludo-stars-db`), web service `ludo-web` (Next.js, Docker, with `preDeployCommand: npx prisma db push`), web service `ludo-game-service` (Socket.IO, Docker). Auto-generates NEXTAUTH_SECRET. DATABASE_URL wired from the Postgres database. Two URL env vars (NEXTAUTH_URL + NEXT_PUBLIC_GAME_SERVICE_URL) have placeholder values the user updates after the first deploy.
+- **.dockerignore**: excludes node_modules, .next, logs, .git, *.db, etc. to keep build context small.
+- **.env.example**: documents all env vars including the new `NEXT_PUBLIC_GAME_SERVICE_URL`.
+- **README**: added a full "Deploy to Render (free tier, one-click)" section with steps, free-tier limits explanation, the two-schema rationale, and a cron-ping tip to prevent the game-service from sleeping.
+
+Verification:
+- ✅ `bun run lint` — 0 errors, 0 warnings.
+- ✅ `prettier --check` — all files formatted.
+- ✅ `tsc --noEmit` — 0 app errors.
+- ✅ Sandbox dev still works end-to-end (dashboard → Play vs Bots → game starts → dice rolls → legal moves appear). The client correctly falls back to the Caddy pattern when `NEXT_PUBLIC_GAME_SERVICE_URL` is empty.
+
+Stage Summary:
+- The app is ready for one-click Render deployment. Push to GitHub → Render Blueprint → update 2 URL env vars → live.
+- Files created: `prisma/schema.render.prisma`, `Dockerfile`, `mini-services/game-service/Dockerfile`, `render.yaml`, `.dockerignore`.
+- Files updated: `src/lib/ludo/client.ts` (configurable URL), `mini-services/game-service/index.ts` (PORT env), `.env.example`, `README.md`.
+- Local dev is unchanged — still uses SQLite + the Caddy gateway. Zero migration required for existing dev workflows.

@@ -1,0 +1,56 @@
+# Render Blueprint — one-click deploy for Ludo Stars.
+#
+# After pushing this to GitHub, go to:
+#   https://dashboard.render.com/blueprints → New Blueprint Instance
+# Select this repo. Render will create all three services below automatically.
+#
+# You'll need to update two env vars after the first deploy (the URLs aren't
+# known until Render creates the services):
+#   - ludo-web → NEXTAUTH_URL            (e.g. https://ludo-web-xxxx.onrender.com)
+#   - ludo-web → NEXT_PUBLIC_GAME_SERVICE_URL (e.g. https://ludo-game-service-xxxx.onrender.com)
+
+databases:
+  - name: ludo-stars-db
+    databaseName: ludo
+    plan: free
+    ipAllowList: []
+
+services:
+  # ── Next.js web app (the UI + auth/friends/lobby APIs) ─────────────────────
+  - type: web
+    name: ludo-web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    autoDeploy: true
+    # Before each deploy, push the Prisma schema to Postgres so the DB is
+    # ready when the new version starts. The DATABASE_URL env var is wired
+    # below (from the ludo-stars-db database) so prisma can connect.
+    preDeployCommand: npx prisma db push --schema=prisma/schema.render.prisma --accept-data-loss
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ludo-stars-db
+          property: connectionString
+      - key: NEXTAUTH_SECRET
+        generateValue: true # Render generates a secure random secret
+      - key: NEXTAUTH_URL
+        value: https://ludo-web.onrender.com # UPDATE after first deploy
+      - key: NEXT_PUBLIC_GAME_SERVICE_URL
+        value: https://ludo-game-service.onrender.com # UPDATE after first deploy
+
+  # ── Socket.IO game-service (real-time game state + bots) ───────────────────
+  - type: web
+    name: ludo-game-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./mini-services/game-service/Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # PORT is set automatically by Render (the service binds to it).

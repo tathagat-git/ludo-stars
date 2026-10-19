@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+build
+dist
+.git
+.gitignore
+dev.log
+server.log
+mini-services/game-service/service.log
+mini-services/game-service/node_modules
+*.db
+*.db-journal
+agent-ctx
+worklog.md
+README.md

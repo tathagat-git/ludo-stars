@@ -31,7 +31,9 @@ import { chooseBotMove, randomBotName, botThinkDelay } from '../../src/lib/ludo/
 // ----------------------------------------------------------------------------
 // Constants
 // ----------------------------------------------------------------------------
-const PORT = 3003 // hardcoded per spec — do NOT use PORT env
+// Port: Render (and most PaaS) assign the port via the PORT env var. In local
+// dev we default to 3003 (the Caddy gateway routes via ?XTransformPort=3003).
+const PORT = Number(process.env.PORT) || 3003
 
 const ALL_HUMANS_DISCONNECT_DESTROY_MS = 60_000
 const EMPTY_ROOM_DESTROY_GRACE_MS = 5_000 // absorbs StrictMode reconnects + blips

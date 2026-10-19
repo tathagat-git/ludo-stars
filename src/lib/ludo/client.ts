@@ -21,6 +21,19 @@ import type { GameEvent, GameState, LegalMove } from './engine'
 
 export const GAME_SERVICE_PORT = 3003
 
+/**
+ * The public URL of the game-service (Socket.IO).
+ *
+ * - In LOCAL DEV (the sandbox / your laptop): this is empty, so the client
+ *   connects to the same origin via the Caddy gateway using
+ *   `/?XTransformPort=3003`. No extra config needed.
+ *
+ * - In PRODUCTION (Render / any host without a Caddy gateway): set
+ *   `NEXT_PUBLIC_GAME_SERVICE_URL` to the game-service's public URL, e.g.
+ *   `https://ludo-game-service.onrender.com`. The client connects directly.
+ */
+export const GAME_SERVICE_URL = process.env.NEXT_PUBLIC_GAME_SERVICE_URL ?? ''
+
 // ─── Socket event names (must match mini-services/game-service/index.ts) ─────
 // Client → server
 export const EV = {
@@ -123,13 +136,23 @@ export function createGameSocket(
   username: string,
   config?: RoomConfig,
 ): Socket {
-  const socket = io('/?XTransformPort=' + GAME_SERVICE_PORT, {
+  // Build the socket.io connection URL.
+  // - If NEXT_PUBLIC_GAME_SERVICE_URL is set (production), connect directly.
+  // - Otherwise (local dev with Caddy), connect to same origin + the
+  //   XTransformPort query so Caddy routes to the game-service port.
+  const socketUrl = GAME_SERVICE_URL || '/'
+  const socketQuery = GAME_SERVICE_URL
+    ? undefined
+    : { XTransformPort: String(GAME_SERVICE_PORT) }
+
+  const socket = io(socketUrl, {
     transports: ['websocket', 'polling'],
     forceNew: true,
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     timeout: 10000,
+    query: socketQuery,
   })
   // Stash join payload (including optional room config) so we can re-emit on
   // reconnect. The server reads mode/maxPlayers only when creating a NEW

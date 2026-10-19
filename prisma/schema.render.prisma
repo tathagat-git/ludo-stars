@@ -1,0 +1,154 @@
+// Ludo Stars - Prisma schema (PostgreSQL, for Render deployment)
+//
+// This is identical to schema.prisma (which uses SQLite for local dev) but
+// switches the datasource provider to "postgresql" for production. Render's
+// free PostgreSQL database uses this. The Prisma client generated from this
+// schema is provider-specific, so the Render build runs `prisma generate`
+// with this file (see render.yaml buildCommand + Dockerfile).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  name          String?
+  passwordHash  String
+  avatar        String?
+  wins          Int       @default(0)
+  losses        Int       @default(0)
+  gamesPlayed   Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts         Account[]
+  sessions         Session[]
+  friendsFrom      Friendship[] @relation("FriendshipFrom")
+  friendsTo        Friendship[] @relation("FriendshipTo")
+  requestsSent     FriendRequest[] @relation("RequestFrom")
+  requestsReceived FriendRequest[] @relation("RequestTo")
+  gamesAsP1        Game[] @relation("GameP1")
+  gamesAsP2        Game[] @relation("GameP2")
+  gamesAsP3        Game[] @relation("GameP3")
+  gamesAsP4        Game[] @relation("GameP4")
+  gamePlayers      GamePlayer[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  fromId    String
+  toId      String
+  createdAt DateTime @default(now())
+  from      User @relation("FriendshipFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to        User @relation("FriendshipTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@unique([fromId, toId])
+}
+
+model FriendRequest {
+  id        String   @id @default(cuid())
+  fromId    String
+  toId      String
+  status    String   @default("pending") // pending | accepted | declined
+  createdAt DateTime @default(now())
+  from      User @relation("RequestFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to        User @relation("RequestTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@unique([fromId, toId])
+}
+
+model Game {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  mode       String    @default("classic") // classic | twist
+  maxPlayers Int       @default(4) // 2 | 3 | 4 | 5 | 6
+  botCount   Int       @default(0)
+  status     String    @default("waiting") // waiting | playing | finished
+  winnerId   String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  player1Id String?
+  player2Id String?
+  player3Id String?
+  player4Id String?
+  player1   User? @relation("GameP1", fields: [player1Id], references: [id])
+  player2   User? @relation("GameP2", fields: [player2Id], references: [id])
+  player3   User? @relation("GameP3", fields: [player3Id], references: [id])
+  player4   User? @relation("GameP4", fields: [player4Id], references: [id])
+
+  players GamePlayer[]
+  moves   GameMove[]
+}
+
+model GamePlayer {
+  id        String   @id @default(cuid())
+  gameId    String
+  userId    String?
+  seat      Int
+  isBot     Boolean @default(false)
+  botName   String?
+  finalRank Int?
+  joinedAt  DateTime @default(now())
+
+  game Game  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+
+  @@unique([gameId, seat])
+}
+
+model GameMove {
+  id        String   @id @default(cuid())
+  gameId    String
+  seat      Int
+  dice      Int
+  tokenId   Int
+  direction String   @default("forward") // forward | backward
+  createdAt DateTime @default(now())
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, createdAt])
+}
