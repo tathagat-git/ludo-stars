@@ -39,13 +39,13 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 
-# Copy the Prisma client (generated for Postgres) + the prisma CLI + schema
-# so the container can run `prisma db push` at startup to migrate the DB.
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=build /app/node_modules/prisma ./node_modules/prisma
-# Copy the .bin symlinks so `npx prisma` resolves correctly.
-COPY --from=build /app/node_modules/.bin ./node_modules/.bin
+# Copy the ENTIRE node_modules from the build stage so the prisma CLI + ALL
+# its transitive deps (effect, @prisma/config, etc.) are available at runtime.
+# Cherry-picking individual packages missed transitive deps; copying the whole
+# tree is ~50MB bigger but guarantees `prisma db push` works at startup.
+# The standalone bundle's traced node_modules is a subset of this, so the
+# Next.js server.js still resolves @prisma/client correctly.
+COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/prisma ./prisma
 
 EXPOSE 3000
