@@ -28,6 +28,7 @@ import { Dice } from './dice'
 import { PlayerCard } from './player-card'
 import { ChatPanel } from './chat-panel'
 import { GameOverModal } from './game-over-modal'
+import { FloatingBasePanel } from './floating-base-panel'
 
 interface GameRoomProps {
   code: string
@@ -166,6 +167,9 @@ export function GameRoom({
   const currentPlayer = players[gameState.currentSeat]
   const sortedWinners = gameState.winners
   const isGameOver = gameState.phase === 'gameover'
+  // Set of token IDs that have a legal move (for the floating base panels to
+  // highlight movable purple/orange tokens).
+  const movableTokenIds = new Set(legalMoves.map((m) => m.tokenId))
 
   return (
     <main className="from-background via-background to-muted/30 flex min-h-screen flex-col bg-gradient-to-br">
@@ -259,13 +263,37 @@ export function GameRoom({
             ))}
           </div>
 
-          {/* Board */}
-          <LudoBoard
-            state={gameState}
-            mySeat={mySeat}
-            onTokenClick={(tokenId, dir) => move(tokenId, dir)}
-            highlightLegal={isMyTurn && gameState.phase === 'move'}
-          />
+          {/* Board + optional floating base panels for purple/orange (5-6 players) */}
+          <div className="flex w-full items-center justify-center gap-2">
+            {/* Purple floating base panel (seat 4) — only when 5+ players */}
+            {gameState.maxPlayers >= 5 && (
+              <FloatingBasePanel
+                color="purple"
+                seat={4}
+                tokens={gameState.tokens}
+                side="left"
+                movableTokenIds={movableTokenIds}
+              />
+            )}
+
+            <LudoBoard
+              state={gameState}
+              mySeat={mySeat}
+              onTokenClick={(tokenId, dir) => move(tokenId, dir)}
+              highlightLegal={isMyTurn && gameState.phase === 'move'}
+            />
+
+            {/* Orange floating base panel (seat 5) — only when 6 players */}
+            {gameState.maxPlayers >= 6 && (
+              <FloatingBasePanel
+                color="orange"
+                seat={5}
+                tokens={gameState.tokens}
+                side="right"
+                movableTokenIds={movableTokenIds}
+              />
+            )}
+          </div>
 
           {/* Dice */}
           <div className="w-full max-w-xs">

@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Crown, Star } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, Crown, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   HOME_COLUMN_CELLS,
@@ -29,7 +29,6 @@ import {
   type LegalMove,
 } from '@/lib/ludo/engine'
 import { Token as TokenComponent } from './token'
-import { DirectionPicker } from './direction-picker'
 
 interface LudoBoardProps {
   state: GameState
@@ -38,16 +37,15 @@ interface LudoBoardProps {
   highlightLegal: boolean
 }
 
-// Arrow rotation (degrees) for the direction-of-travel chevron shown on each
-// colored start square. Lucide's ArrowRight points right (0°) by default; we
-// rotate it to match the track's clockwise flow at that start cell.
+// Arrow rotation (degrees) for the direction-of-travel chevron on each colored
+// start square. Points along the track's clockwise flow.
 const START_ARROW_ROTATION: Record<Color, number> = {
-  red: 270, // up (north) — track goes UP from (13,6)
-  green: 0, // right (east) — track goes RIGHT from (6,0)
-  yellow: 90, // down (south) — track goes DOWN from (0,8)
-  blue: 180, // left (west) — track goes LEFT from (7,14)
-  purple: 180, // left (west) — track goes LEFT from (8,5)
-  orange: 0, // right (east) — track goes RIGHT from (6,9)
+  red: 270, // up
+  green: 0, // right
+  yellow: 90, // down
+  blue: 180, // left
+  purple: 180,
+  orange: 0,
 }
 
 // ─── Cell-type lookup ────────────────────────────────────────────────────────
@@ -59,9 +57,6 @@ type CellInfo =
   | { kind: 'center' }
   | { kind: 'base'; color: Color; dockIndex: number | null }
 
-/// Look up what kind of cell a (row, col) is. Used to colour the cell.
-/// NOTE: only the 4 standard on-board colors have home-column / base regions.
-/// Purple & orange are rendered off-board (inside the PlayerCard).
 function getCellInfo(row: number, col: number): CellInfo {
   if (row === CENTER_CELL.row && col === CENTER_CELL.col) {
     return { kind: 'center' }
@@ -73,7 +68,6 @@ function getCellInfo(row: number, col: number): CellInfo {
     const isStar = STAR_CELLS.some((c) => c.row === row && c.col === col)
     return { kind: 'track', idx: trackIdx, isStart, color, isStar }
   }
-  // Home columns — only the 4 on-board colors have them on the grid.
   for (const c of COLORS) {
     if (!isOnBoardColor(c)) continue
     const list = HOME_COLUMN_CELLS[c]
@@ -81,7 +75,6 @@ function getCellInfo(row: number, col: number): CellInfo {
     const idx = list.findIndex((cell) => cell.row === row && cell.col === col)
     if (idx >= 0) return { kind: 'home', color: c, pos: 100 + idx }
   }
-  // Base regions — only the 4 on-board colors have them on the grid.
   for (const c of COLORS) {
     if (!isOnBoardColor(c)) continue
     const region = BASE_REGIONS[c]
@@ -104,29 +97,22 @@ function getCellInfo(row: number, col: number): CellInfo {
 
 interface TokenPlacement {
   cell: Cell
-  dx: number // fractional cell offset (-1..1)
+  dx: number
   dy: number
   scale: number
   z: number
-  offBoard: boolean // true → skip grid render (purple/orange in base or home col)
+  offBoard: boolean
 }
 
-/// Compute the cell + intra-cell offset for a token, given the whole token
-/// array (so we can spread tokens that share a cell into a 2x2 grid, and
-/// spread finished tokens into their colored triangle in the center).
 function getTokenPlacement(token: Token, allTokens: Token[]): TokenPlacement {
   const rawCell: Cell | null = isInBase(token.pos)
     ? baseDockCell(token.seat, token.index)
     : posToCell(token.pos, token.seat)
-  // Purple/orange token in base or home column → render off-board (PlayerCard
-  // draws it). Track positions (0-51) and the center finish (pos=200) are
-  // always on-grid for every color.
   if (!rawCell) {
     return { cell: { row: -1, col: -1 }, dx: 0, dy: 0, scale: 0, z: 0, offBoard: true }
   }
   const cell: Cell = rawCell
 
-  // Finished tokens: cluster by color around their triangle of the center.
   if (isFinished(token.pos)) {
     const sameColorFinished = allTokens.filter(
       (t) => isFinished(t.pos) && t.seat === token.seat,
@@ -135,18 +121,17 @@ function getTokenPlacement(token: Token, allTokens: Token[]): TokenPlacement {
     const total = sameColorFinished.length
     const spread = (i: number) => (total <= 1 ? 0 : (i - (total - 1) / 2) * 0.18)
     const offsets: Record<Color, { dx: number; dy: number }> = {
-      red: { dx: spread(idxInColor), dy: 0.24 }, // bottom triangle
-      green: { dx: -0.24, dy: spread(idxInColor) }, // left triangle
-      yellow: { dx: spread(idxInColor), dy: -0.24 }, // top triangle
-      blue: { dx: 0.24, dy: spread(idxInColor) }, // right triangle
-      purple: { dx: spread(idxInColor) - 0.18, dy: 0.18 }, // bottom-left-ish
-      orange: { dx: spread(idxInColor) + 0.18, dy: -0.18 }, // top-right-ish
+      red: { dx: spread(idxInColor), dy: 0.24 },
+      green: { dx: -0.24, dy: spread(idxInColor) },
+      yellow: { dx: spread(idxInColor), dy: -0.24 },
+      blue: { dx: 0.24, dy: spread(idxInColor) },
+      purple: { dx: spread(idxInColor) - 0.18, dy: 0.18 },
+      orange: { dx: spread(idxInColor) + 0.18, dy: -0.18 },
     }
     const o = offsets[COLORS[token.seat]!]
     return { cell, dx: o.dx, dy: o.dy, scale: 0.62, z: 20 + idxInColor, offBoard: false }
   }
 
-  // Other tokens: if multiple share the same cell, arrange in a 2x2 grid.
   const sameCell = allTokens.filter((t) => {
     const tCell = isInBase(t.pos)
       ? baseDockCell(t.seat, t.index)
@@ -177,40 +162,26 @@ function CellView({ row, col }: { row: number; col: number }) {
     case 'center':
       return (
         <div className="relative aspect-square overflow-hidden border border-slate-800 bg-white dark:border-slate-200/40 dark:bg-slate-900">
-          {/* 4 colored triangles meeting at the center */}
           <div
             className="absolute inset-0"
-            style={{
-              clipPath: 'polygon(0 0, 100% 0, 50% 50%)',
-              background: 'var(--c-yellow)',
-            }}
+            style={{ clipPath: 'polygon(0 0, 100% 0, 50% 50%)', background: 'var(--c-yellow)' }}
             aria-hidden
           />
           <div
             className="absolute inset-0"
-            style={{
-              clipPath: 'polygon(0 0, 0 100%, 50% 50%)',
-              background: 'var(--c-green)',
-            }}
+            style={{ clipPath: 'polygon(0 0, 0 100%, 50% 50%)', background: 'var(--c-green)' }}
             aria-hidden
           />
           <div
             className="absolute inset-0"
-            style={{
-              clipPath: 'polygon(0 100%, 100% 100%, 50% 50%)',
-              background: 'var(--c-red)',
-            }}
+            style={{ clipPath: 'polygon(0 100%, 100% 100%, 50% 50%)', background: 'var(--c-red)' }}
             aria-hidden
           />
           <div
             className="absolute inset-0"
-            style={{
-              clipPath: 'polygon(100% 0, 100% 100%, 50% 50%)',
-              background: 'var(--c-blue)',
-            }}
+            style={{ clipPath: 'polygon(100% 0, 100% 100%, 50% 50%)', background: 'var(--c-blue)' }}
             aria-hidden
           />
-          {/* Crown in the very center to signify the finish */}
           <div className="absolute inset-0 grid place-items-center" aria-hidden>
             <Crown className="size-3/5 text-amber-500 drop-shadow" strokeWidth={2.5} />
           </div>
@@ -226,7 +197,7 @@ function CellView({ row, col }: { row: number; col: number }) {
               'relative aspect-square border border-slate-200 dark:border-slate-700',
               COLOR_BG[info.color],
             )}
-            aria-label={`${info.color} start — safe square, direction of travel`}
+            aria-label={`${info.color} start — safe square`}
           >
             <ArrowRight
               className="absolute inset-0 m-auto size-3/5 text-white drop-shadow"
@@ -253,8 +224,6 @@ function CellView({ row, col }: { row: number; col: number }) {
       )
 
     case 'home': {
-      // Approach cells (pos 100..104) get a soft tint; the final home cell
-      // (pos 105, adjacent to center) uses the full color for emphasis.
       const isLastCell = info.pos === 105
       return (
         <div
@@ -293,15 +262,29 @@ function CellView({ row, col }: { row: number; col: number }) {
 
 const GRID = 15
 
-export function LudoBoard({
-  state,
-  mySeat,
-  onTokenClick,
-  highlightLegal,
-}: LudoBoardProps) {
-  const [pickerTokenId, setPickerTokenId] = useState<number | null>(null)
+export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoBoardProps) {
+  // Map destination cell "row,col" → legal moves (one or two per cell).
+  const movesByCell = useMemo(() => {
+    const map = new Map<string, LegalMove[]>()
+    if (!highlightLegal) return map
+    for (const m of state.legalMoves) {
+      const cell = posToCell(m.toPos, state.currentSeat)
+      if (!cell) continue
+      const key = `${cell.row},${cell.col}`
+      const arr = map.get(key) ?? []
+      arr.push(m)
+      map.set(key, arr)
+    }
+    return map
+  }, [state.legalMoves, state.currentSeat, highlightLegal])
 
-  // Cells
+  // Set of token IDs that have a legal move (to highlight movable tokens).
+  const movableTokens = useMemo(() => {
+    const set = new Set<number>()
+    for (const m of state.legalMoves) set.add(m.tokenId)
+    return set
+  }, [state.legalMoves])
+
   const cells = useMemo(() => {
     const out: { row: number; col: number }[] = []
     for (let r = 0; r < GRID; r++) {
@@ -312,63 +295,30 @@ export function LudoBoard({
     return out
   }, [])
 
-  // Map tokenId → legal moves (forward, backward, or both).
-  const legalByToken = useMemo(() => {
-    const map = new Map<number, { forward?: LegalMove; backward?: LegalMove }>()
-    for (const m of state.legalMoves) {
-      const entry = map.get(m.tokenId) ?? {}
-      entry[m.direction] = m
-      map.set(m.tokenId, entry)
-    }
-    return map
-  }, [state.legalMoves])
-
-  // Set of destination cells that should pulse-highlight. Off-board
-  // destinations (purple/orange moving into home column) are skipped.
-  const highlightCells = useMemo(() => {
-    if (!highlightLegal) return new Set<string>()
-    const set = new Set<string>()
-    for (const m of state.legalMoves) {
-      const cell = posToCell(m.toPos, state.currentSeat)
-      if (cell) set.add(`${cell.row},${cell.col}`)
-    }
-    return set
-  }, [state.legalMoves, state.currentSeat, highlightLegal])
-
-  // Token placements. Index in `placements` == index in `state.tokens`.
   const placements = useMemo(
     () => state.tokens.map((t) => ({ token: t, p: getTokenPlacement(t, state.tokens) })),
     [state.tokens],
   )
 
-  // Whether it's our turn (for token clickability + board glow).
   const isMyTurn = mySeat !== null && state.currentSeat === mySeat
   const canMove = isMyTurn && state.phase === 'move'
   const showTurnGlow = isMyTurn && (state.phase === 'move' || state.phase === 'roll')
 
-  const handleTokenClick = (tokenId: number) => {
-    if (!canMove) return
-    const entry = legalByToken.get(tokenId)
-    if (!entry) return
-    if (entry.forward && entry.backward) {
-      setPickerTokenId(tokenId)
-      return
-    }
-    if (entry.forward) {
-      onTokenClick(tokenId, 'forward')
-      return
-    }
-    if (entry.backward) {
-      onTokenClick(tokenId, 'backward')
-      return
-    }
+  // Click handler for a destination cell. If only one move targets it,
+  // execute it. If two (forward + backward to the same cell), prefer forward.
+  const handleCellClick = (moves: LegalMove[]) => {
+    if (!canMove || moves.length === 0) return
+    const fwd = moves.find((m) => m.direction === 'forward')
+    const pick = fwd ?? moves[0]!
+    onTokenClick(pick.tokenId, pick.direction)
   }
 
   return (
     <div
       className={cn(
-        'relative mx-auto aspect-square w-full max-w-[min(95vw,600px)] rounded-xl border-2 border-slate-800 bg-white p-1 shadow-2xl select-none dark:border-slate-200/30 dark:bg-slate-900',
-        showTurnGlow && 'animate-pulse ring-4 ring-emerald-400/40',
+        'relative mx-auto aspect-square w-full max-w-[min(95vw,600px)] rounded-xl border-2 border-slate-800 bg-white p-1 shadow-2xl select-none transition-shadow dark:border-slate-200/30 dark:bg-slate-900',
+        // Subtle steady glow on the player's turn — no aggressive pulsing.
+        showTurnGlow && 'shadow-emerald-400/30 ring-2 ring-emerald-400/40',
       )}
       role="grid"
       aria-label="Ludo board"
@@ -392,32 +342,34 @@ export function LudoBoard({
       >
         {cells.map(({ row, col }) => {
           const key = `${row},${col}`
-          const isHighlight = highlightCells.has(key)
+          const moves = movesByCell.get(key)
+          const isClickable = canMove && !!moves && moves.length > 0
           return (
             <div key={key} className="relative">
               <CellView row={row} col={col} />
-              {isHighlight && (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 animate-pulse rounded-sm ring-2 ring-emerald-400 ring-offset-1"
-                />
+              {isClickable && moves && (
+                <button
+                  type="button"
+                  onClick={() => handleCellClick(moves)}
+                  className="absolute inset-0 z-20 flex items-center justify-center rounded-sm border-2 border-emerald-400 bg-emerald-400/20 transition-colors hover:bg-emerald-400/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  aria-label={`Move token ${moves[0]!.direction} here`}
+                >
+                  <DirectionArrow moves={moves} />
+                </button>
               )}
             </div>
           )
         })}
       </div>
 
-      {/* Tokens overlaid absolutely — skip off-board tokens */}
+      {/* Tokens overlaid absolutely — skip off-board tokens. Tokens are NOT
+          clickable anymore; the player clicks destination cells instead. */}
       {placements.map(({ token, p }, tokenId) => {
         if (p.offBoard) return null
         const top = ((p.cell.row + 0.5 + p.dy) / GRID) * 100
         const left = ((p.cell.col + 0.5 + p.dx) / GRID) * 100
-        const isLegalToken = canMove && legalByToken.has(tokenId)
+        const isMovable = canMove && movableTokens.has(tokenId)
         const isCurrentSeatToken = token.seat === state.currentSeat
-        const entry = legalByToken.get(tokenId)
-        const showPicker = pickerTokenId === tokenId
-
-        // Token size: ~70% of one cell, scaled by per-token scale (for sharing).
         const sizePct = (1 / GRID) * 70 * p.scale
 
         return (
@@ -425,7 +377,10 @@ export function LudoBoard({
             key={`token-${token.seat}-${token.index}`}
             layout
             transition={{ type: 'spring', stiffness: 350, damping: 28 }}
-            className="absolute"
+            className={cn(
+              'absolute pointer-events-none',
+              isMovable && 'pointer-events-auto',
+            )}
             style={{
               top: `${top}%`,
               left: `${left}%`,
@@ -435,43 +390,42 @@ export function LudoBoard({
               zIndex: p.z,
             }}
           >
-            {showPicker && entry?.forward && entry?.backward ? (
-              <DirectionPicker
-                open
-                onOpenChange={(o) => !o && setPickerTokenId(null)}
-                dice={state.dice ?? 0}
-                forwardCaptures={entry.forward.captures.length}
-                backwardCaptures={entry.backward.captures.length}
-                onPick={(dir) => {
-                  setPickerTokenId(null)
-                  onTokenClick(tokenId, dir)
-                }}
-              >
-                <span className="block size-full">
-                  <TokenComponent
-                    color={COLORS[token.seat]!}
-                    tokenId={token.index}
-                    isLegal={!!isLegalToken}
-                    isCurrent={isCurrentSeatToken}
-                  />
-                </span>
-              </DirectionPicker>
-            ) : (
-              <div className="size-full">
-                <TokenComponent
-                  color={COLORS[token.seat]!}
-                  tokenId={token.index}
-                  isLegal={!!isLegalToken}
-                  isCurrent={isCurrentSeatToken}
-                  onClick={isLegalToken ? () => handleTokenClick(tokenId) : undefined}
-                />
-              </div>
-            )}
+            <div className="size-full">
+              <TokenComponent
+                color={COLORS[token.seat]!}
+                tokenId={token.index}
+                isLegal={isMovable}
+                isCurrent={isCurrentSeatToken}
+                // No onClick — tokens are not clickable. Destination cells are.
+              />
+            </div>
           </motion.div>
         )
       })}
     </div>
   )
+}
+
+// ─── Direction arrow overlay (shown inside clickable destination cells) ──────
+
+function DirectionArrow({ moves }: { moves: LegalMove[] }) {
+  const fwd = moves.find((m) => m.direction === 'forward')
+  const bwd = moves.find((m) => m.direction === 'backward')
+  if (fwd && bwd) {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <ArrowUp className="size-3 text-emerald-700" strokeWidth={3} />
+        <ArrowDown className="size-3 text-amber-700" strokeWidth={3} />
+      </div>
+    )
+  }
+  if (fwd) {
+    return <ArrowUp className="size-1/2 text-emerald-700" strokeWidth={3} aria-hidden />
+  }
+  if (bwd) {
+    return <ArrowDown className="size-1/2 text-amber-700" strokeWidth={3} aria-hidden />
+  }
+  return null
 }
 
 export default LudoBoard

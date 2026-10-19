@@ -359,7 +359,23 @@ function capturedByLandingOn(state: GameState, seat: number, cell: number): numb
   return captured
 }
 
+/// Cryptographically fair dice roll. Uses `crypto.getRandomValues` when
+/// available (browser + Node 19+) with rejection sampling for a perfectly
+/// uniform 1..6 distribution (no modulo bias). Falls back to `Math.random`
+/// in environments without crypto. Neither path favors any player — both are
+/// uniform random.
 export function rollDice(): number {
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const buf = new Uint8Array(1)
+    // Rejection sampling: 256 % 6 != 0, so we reject values >= 252 to keep
+    // a perfectly uniform distribution (252 = 42*6, so 0..251 maps evenly).
+    let r: number
+    do {
+      crypto.getRandomValues(buf)
+      r = buf[0]!
+    } while (r >= 252)
+    return 1 + (r % 6)
+  }
   return 1 + Math.floor(Math.random() * 6)
 }
 
