@@ -44,12 +44,14 @@ COPY --from=build /app/public ./public
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=build /app/node_modules/prisma ./node_modules/prisma
+# Copy the .bin symlinks so `npx prisma` resolves correctly.
+COPY --from=build /app/node_modules/.bin ./node_modules/.bin
 COPY --from=build /app/prisma ./prisma
 
 EXPOSE 3000
 
 # On every container start: push the Prisma schema to Postgres (creates/updates
 # tables — idempotent and ~1s when already current), then boot the Next.js
-# standalone server. This replaces Render's preDeployCommand which isn't
-# available on the free tier.
-CMD ["sh", "-c", "npx prisma db push --schema=prisma/schema.render.prisma --accept-data-loss && node server.js"]
+# standalone server. We invoke the prisma CLI via its direct entry file (not
+# `npx prisma`) so we don't depend on node_modules/.bin symlinks being present.
+CMD ["sh", "-c", "node ./node_modules/prisma/build/index.js db push --schema=prisma/schema.render.prisma --accept-data-loss && node server.js"]
