@@ -69,7 +69,6 @@ export function GameRoom({
 
   const [copied, setCopied] = useState(false)
   const isHost = room?.hostUserId === userId
-  // Server uses `started` (boolean) and `phase` to track lifecycle.
   const started = !!room?.started || !!gameState
   const status: 'waiting' | 'playing' | 'finished' = !started
     ? 'waiting'
@@ -77,9 +76,6 @@ export function GameRoom({
       ? 'finished'
       : 'playing'
 
-  // ── Surface websocket / room errors via toast (visible in BOTH lobby and
-  // in-game views). The lobby view also shows a banner; in-game we rely on
-  // the toast so we don't obscure the board.
   useEffect(() => {
     if (error) toast.error(error)
   }, [error])
@@ -99,15 +95,11 @@ export function GameRoom({
     onExit()
   }
 
-  // ── Auto-bot-fill + auto-start (for "Play vs Bots" & pre-configured rooms) ──
-  // Reads `bots` and `autostart` from the URL query. When the host joins a
-  // fresh room, pre-fills the requested bot seats; if `autostart=1`, starts
-  // the game once the room is full.
   const autoFillDone = useRef(false)
   useEffect(() => {
     if (autoFillDone.current) return
     if (!room || !isHost || started) return
-    if (room.seats.length === 0) return // not joined yet
+    if (room.seats.length === 0) return
 
     const params = new URLSearchParams(window.location.search)
     const wantBots = Number(params.get('bots') ?? '0')
@@ -123,13 +115,10 @@ export function GameRoom({
     const botsToAdd = targetBots - currentBots
 
     if (botsToAdd > 0) {
-      // Add bots one at a time; the effect re-runs as room updates (room is a
-      // dep). Each run adds one bot until we reach the target.
       addBot()
       return
     }
 
-    // All bots added. Auto-start if requested and room is full enough.
     if (autostart && room.seats.length >= 2) {
       autoFillDone.current = true
       startGame()
@@ -138,7 +127,7 @@ export function GameRoom({
     }
   }, [room, isHost, started, addBot, startGame])
 
-  // ── LOBBY (waiting) ────────────────────────────────────────────────────────
+  // ── LOBBY ────────────────────────────────────────────────────────────────
   if (status === 'waiting' || !gameState) {
     return (
       <LobbyView
@@ -162,13 +151,11 @@ export function GameRoom({
     )
   }
 
-  // ── IN-GAME ────────────────────────────────────────────────────────────────
+  // ── IN-GAME ──────────────────────────────────────────────────────────────
   const players = gameState.players
   const currentPlayer = players[gameState.currentSeat]
   const sortedWinners = gameState.winners
   const isGameOver = gameState.phase === 'gameover'
-  // Set of token IDs that have a legal move (for the floating base panels to
-  // highlight movable purple/orange tokens).
   const movableTokenIds = new Set(legalMoves.map((m) => m.tokenId))
 
   return (
@@ -223,7 +210,7 @@ export function GameRoom({
         </div>
       </header>
 
-      {/* Reconnecting banner — visible only when the socket drops mid-game */}
+      {/* Reconnecting banner */}
       <AnimatePresence>
         {!connected && (
           <motion.div
@@ -243,8 +230,7 @@ export function GameRoom({
       <div className="flex flex-1 flex-col gap-4 p-3 lg:flex-row lg:p-4">
         {/* Board + players */}
         <section className="flex flex-1 flex-col items-center gap-3">
-          {/* Player cards — auto-fit grid scales cleanly from 2 to 6 players.
-              Each card has a min-width so they wrap nicely on mobile. */}
+          {/* Player cards */}
           <div
             className="grid w-full max-w-3xl gap-2"
             style={{
@@ -263,35 +249,41 @@ export function GameRoom({
             ))}
           </div>
 
-          {/* Board + optional floating base panels for purple/orange (5-6 players) */}
-          <div className="flex w-full items-center justify-center gap-2">
-            {/* Purple floating base panel (seat 4) — only when 5+ players */}
+          {/* Board + floating base panels for purple/orange (5-6 players).
+              Panels align flush with the board height so they look like
+              board extensions. */}
+          <div className="flex w-full items-stretch justify-center gap-1.5">
             {gameState.maxPlayers >= 5 && (
-              <FloatingBasePanel
-                color="purple"
-                seat={4}
-                tokens={gameState.tokens}
-                side="left"
-                movableTokenIds={movableTokenIds}
-              />
+              <div className="aspect-square w-[18%] max-w-[110px] shrink-0">
+                <FloatingBasePanel
+                  color="purple"
+                  seat={4}
+                  tokens={gameState.tokens}
+                  side="left"
+                  movableTokenIds={movableTokenIds}
+                />
+              </div>
             )}
 
-            <LudoBoard
-              state={gameState}
-              mySeat={mySeat}
-              onTokenClick={(tokenId, dir) => move(tokenId, dir)}
-              highlightLegal={isMyTurn && gameState.phase === 'move'}
-            />
-
-            {/* Orange floating base panel (seat 5) — only when 6 players */}
-            {gameState.maxPlayers >= 6 && (
-              <FloatingBasePanel
-                color="orange"
-                seat={5}
-                tokens={gameState.tokens}
-                side="right"
-                movableTokenIds={movableTokenIds}
+            <div className="aspect-square w-full max-w-[min(95vw,600px)] flex-1">
+              <LudoBoard
+                state={gameState}
+                mySeat={mySeat}
+                onTokenClick={(tokenId, dir) => move(tokenId, dir)}
+                highlightLegal={isMyTurn && gameState.phase === 'move'}
               />
+            </div>
+
+            {gameState.maxPlayers >= 6 && (
+              <div className="aspect-square w-[18%] max-w-[110px] shrink-0">
+                <FloatingBasePanel
+                  color="orange"
+                  seat={5}
+                  tokens={gameState.tokens}
+                  side="right"
+                  movableTokenIds={movableTokenIds}
+                />
+              </div>
             )}
           </div>
 
@@ -313,7 +305,7 @@ export function GameRoom({
           <EventTicker event={lastEvent} players={players} />
         </section>
 
-        {/* Chat panel (desktop right side, mobile below) */}
+        {/* Chat panel */}
         <aside className="flex h-64 w-full flex-col lg:h-auto lg:w-80">
           <ChatPanel messages={chat} onSend={sendMessage} className="h-full" />
         </aside>
@@ -564,7 +556,6 @@ function EventTicker({
   const text = (() => {
     if (!event) return 'Waiting for the first move…'
     if (event.type === 'gameover') return 'Game over!'
-    // All non-gameover variants have either `seat` or `bySeat`.
     const seat = 'seat' in event ? event.seat : 'bySeat' in event ? event.bySeat : 0
     const p = players[seat]
     const name = p?.name ?? 'Player'
