@@ -23,7 +23,10 @@ ENV DATABASE_URL="postgresql://placeholder@build-time:5432/placeholder"
 RUN bun run build
 
 # ─── Runtime stage ───────────────────────────────────────────────────────────
-FROM oven/bun:1 AS runtime
+# Use the official Node.js image for runtime — the Next.js standalone server.js
+# is a Node file, and Node guarantees full compatibility with the Prisma CLI
+# (which spawns native Rust engines and uses Node-specific APIs).
+FROM node:20-slim AS runtime
 
 WORKDIR /app
 
@@ -36,9 +39,8 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 
-# Copy the Prisma client (generated for Postgres) so runtime DB queries work.
-# The standalone bundle includes @prisma/client (traced by Next.js), but we
-# also copy the prisma CLI + schema for the pre-deploy `prisma db push`.
+# Copy the Prisma client (generated for Postgres) + the prisma CLI + schema
+# so the container can run `prisma db push` at startup to migrate the DB.
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=build /app/node_modules/prisma ./node_modules/prisma
@@ -46,7 +48,8 @@ COPY --from=build /app/prisma ./prisma
 
 EXPOSE 3000
 
-# The standalone server.js is a Node file — Bun runs it fine.
-# prisma db push runs as a Render pre-deploy hook (see render.yaml), so by
-# the time this CMD runs the DB schema is already in place.
-CMD ["bun", "server.js"]
+# On every container start: push the Prisma schema to Postgres (creates/updates
+# tables — idempotent and ~1s when already current), then boot the Next.js
+# standalone server. This replaces Render's preDeployCommand which isn't
+# available on the free tier.
+CMD ["sh", "-c", "npx prisma db push --schema=prisma/schema.render.prisma --accept-data-loss && node server.js"]

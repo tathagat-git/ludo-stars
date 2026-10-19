@@ -24,10 +24,9 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /
     autoDeploy: true
-    # Before each deploy, push the Prisma schema to Postgres so the DB is
-    # ready when the new version starts. The DATABASE_URL env var is wired
-    # below (from the ludo-stars-db database) so prisma can connect.
-    preDeployCommand: npx prisma db push --schema=prisma/schema.render.prisma --accept-data-loss
+    # NOTE: Render's free tier doesn't support preDeployCommand, so the DB
+    # migration (`prisma db push`) runs inside the container at startup
+    # (see the Dockerfile CMD). It's idempotent and cheap.
     envVars:
       - key: NODE_ENV
         value: production
