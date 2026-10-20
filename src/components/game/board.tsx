@@ -42,11 +42,14 @@ const STARTS_4: Record<number, Color> = {
   39: 'blue',
 }
 const SAFE_4 = new Set([0, 13, 26, 39, 8, 21, 34, 47])
+// Base corner positions for 4-player (in 15x15 grid coords, 0-indexed)
+// [col, row] — top-left corner of the 40% base area in 15x15 grid.
+// Engine layout: red=bottom-left, green=top-left, yellow=top-right, blue=bottom-right.
 const BASE_POS_4: Record<Color, [number, number]> = {
-  red: [9, 0],
-  green: [9, 9],
-  yellow: [0, 9],
-  blue: [0, 0],
+  red: [0, 9], // bottom-left
+  green: [0, 0], // top-left
+  yellow: [9, 0], // top-right
+  blue: [9, 9], // bottom-right
 }
 const SLOT_4 = [
   [1.5, 1.5],
@@ -84,7 +87,9 @@ function pos4(
       return { x: cell.col - 7, y: cell.row - 7, s: 1, k: 'h' + color + enginePos }
     }
   }
-  const ang = { red: 270, green: 0, yellow: 90, blue: 180 }[color]!
+  // Finished — cluster near center from each color's direction.
+  // red=bottom(180°), green=left(270°), yellow=top(0°), blue=right(90°).
+  const ang = { red: 180, green: 270, yellow: 0, blue: 90 }[color]!
   return {
     x: Math.sin(rad(ang)) * 0.8 + (idx % 2 ? 0.12 : -0.12),
     y: -Math.cos(rad(ang)) * 0.8 + (idx > 1 ? 0.12 : -0.12),
@@ -235,26 +240,28 @@ export function Board({ state, mySeat, onTokenClick, highlightLegal }: BoardProp
               </div>
             )
           })}
+          {/* Center — 4 triangles, each facing its color's home column.
+              red=bottom, green=left, yellow=top, blue=right. */}
           <div className="lr-ctr">
             <i
-              style={{ background: C.red.c, clipPath: 'polygon(0 0,50% 50%,0 100%)' }}
+              style={{ background: C.red.c, clipPath: 'polygon(0 100%,100% 100%,50% 50%)' }}
             />
             <i
               style={{
                 background: C.green.c,
-                clipPath: 'polygon(0 0,100% 0,50% 50%)',
+                clipPath: 'polygon(0 0,0 100%,50% 50%)',
               }}
             />
             <i
               style={{
                 background: C.yellow.c,
-                clipPath: 'polygon(100% 0,100% 100%,50% 50%)',
+                clipPath: 'polygon(0 0,100% 0,50% 50%)',
               }}
             />
             <i
               style={{
                 background: C.blue.c,
-                clipPath: 'polygon(0 100%,50% 50%,100% 100%)',
+                clipPath: 'polygon(100% 0,100% 100%,50% 50%)',
               }}
             />
             <div className="lr-ctr-crown anim-crown-glow">👑</div>
@@ -416,9 +423,7 @@ export function Board({ state, mySeat, onTokenClick, highlightLegal }: BoardProp
                 width={0.86}
                 height={0.86}
                 rx={0.15}
-                fill={
-                  j === cfg.home[c]!.length - 1 ? C[c].c : C[c].l
-                }
+                fill={j === cfg.home[c]!.length - 1 ? C[c].c : C[c].l}
                 stroke="rgba(20,30,70,0.14)"
                 strokeWidth={0.04}
                 opacity={0.85}
@@ -428,8 +433,7 @@ export function Board({ state, mySeat, onTokenClick, highlightLegal }: BoardProp
           {/* Base circles */}
           {cfg.ids.map((c) => {
             const [bx, by] = cfg.bc[c]!
-            const isActive =
-              c === currentColor && state.phase !== 'gameover'
+            const isActive = c === currentColor && state.phase !== 'gameover'
             return (
               <g key={'b' + c}>
                 <circle

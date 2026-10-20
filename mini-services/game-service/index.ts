@@ -696,7 +696,7 @@ io.on('connection', (socket: Socket) => {
       let room = rooms.get(code)
       if (!room) {
         // Create a new room with this code (host = joining user).
-        const mode = payload.mode === 'classic' ? 'classic' : 'twist'
+        const mode = payload.mode === 'twist' ? 'twist' : 'classic'
         const maxPlayers = clampMaxPlayers(payload.maxPlayers)
         room = createRoom({ code, userId: payload.userId, mode, maxPlayers })
       } else if (room.gameState) {
