@@ -14,20 +14,16 @@ import { Token as TokenComponent } from './token'
 interface FloatingBasePanelProps {
   color: Color
   seat: number
-  tokens: Token[] // the 4 tokens for this seat
+  tokens: Token[]
   side: 'left' | 'right'
-  onTokenClick?: (tokenId: number, direction: 'forward' | 'backward') => void
   movableTokenIds?: Set<number>
 }
 
 /**
  * FloatingBasePanel — renders the base + home column for purple/orange players
- * (seats 4 & 5) as a compact vertical strip that sits beside the 15x15 board.
- *
- * The 15x15 Ludo board only has room for 4 corner bases + 4 center-approach
- * home columns. For 5-6 player games we add purple & orange as "floating"
- * players: they share the 52-cell track but their base + home column render
- * as this panel instead of on the grid.
+ * (seats 4 & 5) as a compact vertical strip that sits flush beside the 15x15
+ * board, styled to look like a board extension (same cell sizing, colored
+ * border, matching aspect).
  */
 export function FloatingBasePanel({
   color,
@@ -38,7 +34,7 @@ export function FloatingBasePanel({
   const seatTokens = tokens.filter((t) => t.seat === seat)
 
   const docks = (
-    <div className="grid grid-cols-2 gap-1.5">
+    <div className="grid grid-cols-2 gap-1">
       {Array.from({ length: 4 }, (_, i) => {
         const token = seatTokens[i]
         const inBase = token && isInBase(token.pos)
@@ -46,12 +42,12 @@ export function FloatingBasePanel({
           <div
             key={i}
             className={cn(
-              'relative aspect-square rounded-full border-2 border-white/70',
+              'relative aspect-square rounded-md border-2 border-white/70',
               COLOR_BG[color],
             )}
           >
             {inBase && (
-              <div className="absolute inset-0 p-0.5">
+              <div className="absolute inset-0.5">
                 <TokenComponent
                   color={color}
                   tokenId={token!.index}
@@ -76,12 +72,12 @@ export function FloatingBasePanel({
       <div
         key={i}
         className={cn(
-          'relative flex h-7 w-7 items-center justify-center rounded border border-white/60',
+          'relative flex aspect-square items-center justify-center rounded-sm border border-white/50',
           isFinish ? COLOR_BG[color] : COLOR_BG_SOFT[color],
         )}
       >
         {tokenHere && (
-          <div className="absolute inset-0 p-0.5">
+          <div className="absolute inset-0.5">
             <TokenComponent
               color={color}
               tokenId={tokenHere.index}
@@ -96,10 +92,10 @@ export function FloatingBasePanel({
               key={idx}
               className="absolute"
               style={{
-                top: `${20 + idx * 5}%`,
-                left: `${20 + idx * 5}%`,
-                width: '50%',
-                height: '50%',
+                top: `${15 + idx * 8}%`,
+                left: `${15 + idx * 8}%`,
+                width: '60%',
+                height: '60%',
               }}
             >
               <TokenComponent
@@ -117,27 +113,23 @@ export function FloatingBasePanel({
   return (
     <div
       className={cn(
-        'flex flex-col gap-2 rounded-lg border-2 border-slate-700/40 bg-white/90 p-2 shadow-md dark:bg-slate-800/90',
-        side === 'left' ? 'order-first' : 'order-last',
+        'flex aspect-square flex-col gap-1 rounded-lg border-2 p-1 shadow-md',
+        'border-slate-800 bg-white dark:border-slate-200/30 dark:bg-slate-900',
       )}
       aria-label={`${color} player base`}
+      style={{ ['--c' as string]: `var(--c-${color})` }}
     >
-      <div className="flex flex-col gap-1">
-        <span
-          className={cn(
-            'text-center text-[10px] font-bold uppercase tracking-wide',
-            `text-${color}-600`,
-          )}
-        >
+      <div className={cn('rounded px-1 py-0.5 text-center', COLOR_BG[color])}>
+        <span className="text-[9px] font-bold uppercase tracking-wide text-white">
           {color}
         </span>
-        {docks}
       </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-center text-[10px] font-medium text-muted-foreground">
+      <div className="flex-1">{docks}</div>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-center text-[8px] font-medium text-muted-foreground">
           Home
         </span>
-        <div className="flex flex-col items-center gap-1">{homeCells}</div>
+        <div className="flex flex-col gap-0.5">{homeCells}</div>
       </div>
     </div>
   )

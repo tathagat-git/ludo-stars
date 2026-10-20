@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -51,33 +51,31 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  /* Ludo-themed warm red primary (NOT indigo/blue). */
   --primary: oklch(0.55 0.215 25);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.96 0.04 80);
+  --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.55 0.215 25);
-  /* Ludo board palette: red / green / yellow / (blue kept for board, not UI). */
-  --chart-1: oklch(0.55 0.215 25);
-  --chart-2: oklch(0.6 0.16 145);
-  --chart-3: oklch(0.82 0.17 85);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.55 0.215 25);
+  --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.55 0.215 25);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
@@ -87,32 +85,31 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  /* Slightly brighter red for dark mode contrast. */
-  --primary: oklch(0.65 0.2 25);
+  --primary: oklch(0.65 0.20 25);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.32 0.05 80);
+  --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.65 0.2 25);
-  --chart-1: oklch(0.65 0.2 25);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.65 0.2 25);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.65 0.2 25);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {
@@ -124,47 +121,132 @@
   }
 }
 
-/* ----------------------------------------------------------------------- *
- * Tailwind v4 custom utilities — `grid-cols-15` and `grid-rows-15` are not
- * in the default scale (max is grid-cols-12) but the Ludo board is 15x15.
- * ----------------------------------------------------------------------- */
+/* ─── Ludo Royale-style animations ────────────────────────────────────────── */
+
+@keyframes hop {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-16%) scale(1.1); }
+}
+.anim-hop { animation: hop 0.7s ease-in-out infinite; }
+
+@keyframes spin {
+  0% { transform: rotate(0) scale(1); }
+  50% { transform: rotate(180deg) scale(1.12); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+.anim-dice-spin { animation: spin 0.55s linear infinite; }
+
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.88) translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.anim-pop { animation: pop 0.5s cubic-bezier(0.2, 1.3, 0.4, 1); }
+
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.anim-fade { animation: fade 0.3s ease; }
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.anim-bob { animation: bob 2.4s ease-in-out infinite; }
+
+@keyframes base-glow {
+  0%, 100% { box-shadow: inset 0 4px 10px rgba(0,0,0,0.2), 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 4px 10px rgba(0,0,0,0.2), 0 0 0 8px rgba(255,255,255,0.55); }
+}
+.anim-base-glow { animation: base-glow 1.2s ease-in-out infinite; }
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; filter: drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
+}
+.anim-pulse-glow { animation: pulse-glow 1.2s ease-in-out infinite; }
+
+@keyframes token-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8%); }
+}
+.anim-token-bounce { animation: token-bounce 1.5s ease-in-out infinite; }
+
+@keyframes legal-glow {
+  0%, 100% { box-shadow: 0 4px 8px rgba(0,0,0,0.3), 0 0 0 0 rgba(16,185,129,0); }
+  50% { box-shadow: 0 4px 8px rgba(0,0,0,0.3), 0 0 0 3px rgba(16,185,129,0.7), 0 0 14px 4px rgba(16,185,129,0.4); }
+}
+.anim-legal-glow { animation: legal-glow 0.9s ease-in-out infinite; }
+
+@keyframes crown-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); opacity: 0.9; }
+  50% { filter: drop-shadow(0 0 6px rgba(245,158,11,0.8)); opacity: 1; }
+}
+.anim-crown-glow { animation: crown-glow 2s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+.anim-shimmer { animation: shimmer 2.5s ease-in-out infinite; }
+
+@keyframes legal-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); background-color: rgba(16,185,129,0.15); }
+  50% { box-shadow: 0 0 0 4px rgba(16,185,129,0.3); background-color: rgba(16,185,129,0.25); }
+}
+.anim-legal-pulse { animation: legal-pulse 1.2s ease-in-out infinite; }
+
+@keyframes capture-flash {
+  0% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.3); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+}
+.anim-capture-flash { animation: capture-flash 0.6s ease-out forwards; }
+
+@keyframes roll-button-glow {
+  0%, 100% { box-shadow: 0 6px 0 #b8430f, 0 0 0 0 var(--player-color, transparent); }
+  50% { box-shadow: 0 6px 0 #b8430f, 0 0 0 4px var(--player-color, transparent), 0 0 20px var(--player-color, transparent); }
+}
+.anim-roll-button-glow { animation: roll-button-glow 1.2s ease-in-out infinite; }
+
+@keyframes dice-pop {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.anim-dice-pop { animation: dice-pop 0.3s cubic-bezier(0.2, 1.3, 0.4, 1); }
+
+@keyframes turn-breathe {
+  0%, 100% { box-shadow: 0 18px 40px rgba(5,10,40,0.45), inset 0 2px 0 rgba(255,255,255,0.18), 0 0 0 0 rgba(16,185,129,0); }
+  50% { box-shadow: 0 18px 40px rgba(5,10,40,0.45), inset 0 2px 0 rgba(255,255,255,0.18), 0 0 0 3px rgba(16,185,129,0.3); }
+}
+.anim-turn-breathe { animation: turn-breathe 2s ease-in-out infinite; }
+
+.focus-ring-emerald:focus-visible {
+  outline: 3px solid #4aa8ff;
+  outline-offset: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.3); border-radius: 3px; }
+
+.perspective-600 { perspective: 600px; }
+.transform-style-3d { transform-style: preserve-3d; }
+
+.bg-ludo-hero {
+  background: radial-gradient(120% 80% at 50% 0%, #d9e2fb, #eef2ff);
+}
+.dark .bg-ludo-hero {
+  background: radial-gradient(120% 80% at 50% 0%, #1b2250, #0c1124);
+}
+
 @utility grid-cols-15 {
   grid-template-columns: repeat(15, minmax(0, 1fr));
 }
-
 @utility grid-rows-15 {
   grid-template-rows: repeat(15, minmax(0, 1fr));
 }
 
-/* Thin custom scrollbar — used on long lists (friends, history, chat). */
-@layer utilities {
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(156 163 175 / 0.45) transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgb(156 163 175 / 0.45);
-    border-radius: 9999px;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(156 163 175 / 0.8);
-  }
-}
-
-/* Ludo board background helper: subtle warm radial wash for hero panels. */
-@layer utilities {
-  .bg-ludo-hero {
-    background-image:
-      radial-gradient(circle at 15% 20%, rgb(239 68 68 / 0.18), transparent 45%),
-      radial-gradient(circle at 85% 15%, rgb(250 204 21 / 0.2), transparent 45%),
-      radial-gradient(circle at 80% 85%, rgb(34 197 94 / 0.18), transparent 45%),
-      radial-gradient(circle at 20% 80%, rgb(34 197 94 / 0.1), transparent 50%);
-  }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }

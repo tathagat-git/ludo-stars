@@ -24,11 +24,11 @@ import { COLORS } from '@/lib/ludo/engine'
 import { COLOR_BG, COLOR_DOT } from '@/lib/ludo/board'
 import { cn } from '@/lib/utils'
 import { LudoBoard } from './ludo-board'
+import { HexBoard } from './hex-board'
 import { Dice } from './dice'
 import { PlayerCard } from './player-card'
 import { ChatPanel } from './chat-panel'
 import { GameOverModal } from './game-over-modal'
-import { FloatingBasePanel } from './floating-base-panel'
 
 interface GameRoomProps {
   code: string
@@ -127,7 +127,6 @@ export function GameRoom({
     }
   }, [room, isHost, started, addBot, startGame])
 
-  // ── LOBBY ────────────────────────────────────────────────────────────────
   if (status === 'waiting' || !gameState) {
     return (
       <LobbyView
@@ -151,16 +150,13 @@ export function GameRoom({
     )
   }
 
-  // ── IN-GAME ──────────────────────────────────────────────────────────────
   const players = gameState.players
   const currentPlayer = players[gameState.currentSeat]
   const sortedWinners = gameState.winners
   const isGameOver = gameState.phase === 'gameover'
-  const movableTokenIds = new Set(legalMoves.map((m) => m.tokenId))
 
   return (
     <main className="from-background via-background to-muted/30 flex min-h-screen flex-col bg-gradient-to-br">
-      {/* Header */}
       <header className="bg-card/80 flex items-center justify-between gap-2 border-b px-4 py-2 backdrop-blur">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="font-mono">
@@ -210,7 +206,6 @@ export function GameRoom({
         </div>
       </header>
 
-      {/* Reconnecting banner */}
       <AnimatePresence>
         {!connected && (
           <motion.div
@@ -226,11 +221,8 @@ export function GameRoom({
         )}
       </AnimatePresence>
 
-      {/* Body */}
       <div className="flex flex-1 flex-col gap-4 p-3 lg:flex-row lg:p-4">
-        {/* Board + players */}
         <section className="flex flex-1 flex-col items-center gap-3">
-          {/* Player cards */}
           <div
             className="grid w-full max-w-3xl gap-2"
             style={{
@@ -249,26 +241,9 @@ export function GameRoom({
             ))}
           </div>
 
-          {/* Board + floating base panels for purple/orange (5-6 players).
-              Panels align flush with the board height so they look like
-              board extensions. Only show if there's actually a player in
-              seat 4 (purple) or seat 5 (orange). */}
-          <div className="flex w-full items-stretch justify-center gap-1.5">
-            {/* Purple floating base panel (seat 4) — only when a player is actually in seat 4 */}
-            {gameState.maxPlayers >= 5 && players.some((p) => p.seat === 4) && (
-              <div className="aspect-square w-[18%] max-w-[110px] shrink-0">
-                <FloatingBasePanel
-                  color="purple"
-                  seat={4}
-                  tokens={gameState.tokens}
-                  side="left"
-                  movableTokenIds={movableTokenIds}
-                />
-              </div>
-            )}
-
-            {/* Main board */}
-            <div className="aspect-square w-full max-w-[min(95vw,600px)] flex-1">
+          {/* Board — grid for 2-4 players, hex for 5-6 players */}
+          {gameState.maxPlayers <= 4 ? (
+            <div className="w-full max-w-[min(95vw,600px)]">
               <LudoBoard
                 state={gameState}
                 mySeat={mySeat}
@@ -276,22 +251,15 @@ export function GameRoom({
                 highlightLegal={isMyTurn && gameState.phase === 'move'}
               />
             </div>
+          ) : (
+            <HexBoard
+              state={gameState}
+              mySeat={mySeat}
+              onTokenClick={(tokenId, dir) => move(tokenId, dir)}
+              highlightLegal={isMyTurn && gameState.phase === 'move'}
+            />
+          )}
 
-            {/* Orange floating base panel (seat 5) — only when a player is actually in seat 5 */}
-            {gameState.maxPlayers >= 6 && players.some((p) => p.seat === 5) && (
-              <div className="aspect-square w-[18%] max-w-[110px] shrink-0">
-                <FloatingBasePanel
-                  color="orange"
-                  seat={5}
-                  tokens={gameState.tokens}
-                  side="right"
-                  movableTokenIds={movableTokenIds}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Dice */}
           <div className="w-full max-w-xs">
             <Dice
               value={gameState.dice}
@@ -305,17 +273,14 @@ export function GameRoom({
             />
           </div>
 
-          {/* Last event ticker */}
           <EventTicker event={lastEvent} players={players} />
         </section>
 
-        {/* Chat panel */}
         <aside className="flex h-64 w-full flex-col lg:h-auto lg:w-80">
           <ChatPanel messages={chat} onSend={sendMessage} className="h-full" />
         </aside>
       </div>
 
-      {/* Game over modal */}
       <GameOverModal
         open={isGameOver}
         players={players}
@@ -325,8 +290,6 @@ export function GameRoom({
     </main>
   )
 }
-
-// ─── Lobby view ──────────────────────────────────────────────────────────────
 
 interface LobbyViewProps {
   code: string
@@ -380,30 +343,19 @@ function LobbyView(props: LobbyViewProps) {
           <h1 className="text-lg font-bold">Ludo Stars — Lobby</h1>
           <p className="text-muted-foreground text-xs">Waiting for players…</p>
         </div>
-        <Button
-          variant="destructive"
-          size="sm"
-          className="min-h-[40px]"
-          onClick={onLeave}
-        >
+        <Button variant="destructive" size="sm" className="min-h-[40px]" onClick={onLeave}>
           <LogOut className="size-4" /> Leave
         </Button>
       </header>
 
       <div className="mx-auto grid w-full max-w-4xl flex-1 grid-cols-1 gap-4 p-4 md:grid-cols-2">
-        {/* Room info + seat list */}
         <Card className="flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Users className="size-5" /> Room Code
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="min-h-[40px]"
-                onClick={onCopy}
-              >
+              <Button variant="outline" size="sm" className="min-h-[40px]" onClick={onCopy}>
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                 {copied ? 'Copied!' : 'Copy'}
               </Button>
@@ -424,7 +376,6 @@ function LobbyView(props: LobbyViewProps) {
               </p>
             )}
 
-            {/* Seat list */}
             <ul className="flex flex-col gap-2">
               {Array.from({ length: maxPlayers }).map((_, seatIdx) => {
                 const info = seats.find((s) => s.seat === seatIdx)
@@ -448,10 +399,7 @@ function LobbyView(props: LobbyViewProps) {
                     </span>
                     {info ? (
                       <>
-                        <span
-                          className={cn('size-3 rounded-full', COLOR_DOT[color])}
-                          aria-hidden
-                        />
+                        <span className={cn('size-3 rounded-full', COLOR_DOT[color])} aria-hidden />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{info.name}</p>
                           <p className="text-muted-foreground text-xs">
@@ -486,17 +434,12 @@ function LobbyView(props: LobbyViewProps) {
                     ) : (
                       <>
                         <span
-                          className={cn(
-                            'size-3 rounded-full border border-dashed',
-                            COLOR_DOT[color],
-                          )}
+                          className={cn('size-3 rounded-full border border-dashed', COLOR_DOT[color])}
                           aria-hidden
                         />
                         <div className="min-w-0 flex-1">
                           <p className="text-muted-foreground text-sm">Empty seat</p>
-                          <p className="text-muted-foreground text-xs">
-                            Waiting for player…
-                          </p>
+                          <p className="text-muted-foreground text-xs">Waiting for player…</p>
                         </div>
                         {isHost && (
                           <Button
@@ -515,7 +458,6 @@ function LobbyView(props: LobbyViewProps) {
               })}
             </ul>
 
-            {/* Action buttons */}
             <div className="mt-auto flex flex-col gap-2">
               {mySeatInfo && !mySeatInfo.isBot && !mySeatInfo.ready && (
                 <Button className="min-h-[44px]" onClick={onReady}>
@@ -541,14 +483,11 @@ function LobbyView(props: LobbyViewProps) {
           </CardContent>
         </Card>
 
-        {/* Chat */}
         <ChatPanel messages={chat} onSend={onSend} className="h-full min-h-[300px]" />
       </div>
     </main>
   )
 }
-
-// ─── Last event ticker ───────────────────────────────────────────────────────
 
 function EventTicker({
   event,
