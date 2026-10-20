@@ -23,8 +23,7 @@ import { useGameRoom, type SeatInfo } from '@/lib/ludo/client'
 import { COLORS } from '@/lib/ludo/engine'
 import { COLOR_BG, COLOR_DOT } from '@/lib/ludo/board'
 import { cn } from '@/lib/utils'
-import { LudoBoard } from './ludo-board'
-import { HexBoard } from './hex-board'
+import { Board } from './board'
 import { Dice } from './dice'
 import { PlayerCard } from './player-card'
 import { ChatPanel } from './chat-panel'
@@ -241,24 +240,13 @@ export function GameRoom({
             ))}
           </div>
 
-          {/* Board — grid for 2-4 players, hex for 5-6 players */}
-          {gameState.maxPlayers <= 4 ? (
-            <div className="w-full max-w-[min(95vw,600px)]">
-              <LudoBoard
-                state={gameState}
-                mySeat={mySeat}
-                onTokenClick={(tokenId, dir) => move(tokenId, dir)}
-                highlightLegal={isMyTurn && gameState.phase === 'move'}
-              />
-            </div>
-          ) : (
-            <HexBoard
-              state={gameState}
-              mySeat={mySeat}
-              onTokenClick={(tokenId, dir) => move(tokenId, dir)}
-              highlightLegal={isMyTurn && gameState.phase === 'move'}
-            />
-          )}
+          {/* Unified Board — handles 2-4 (grid) and 5-6 (hex) players */}
+          <Board
+            state={gameState}
+            mySeat={mySeat}
+            onTokenClick={(tokenId, dir) => move(tokenId, dir)}
+            highlightLegal={isMyTurn && gameState.phase === 'move'}
+          />
 
           <div className="w-full max-w-xs">
             <Dice

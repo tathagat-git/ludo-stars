@@ -1,9 +1,5 @@
 // Hex board geometry — generates a hexagonal/pentagonal board layout for
 // 5-6 player games, adapted from the Ludo Royale reference design.
-//
-// For 4 players, the standard 15x15 grid is used (see board.ts).
-// For 5-6 players, this module generates a polar-coordinate board where all
-// n bases sit ON the board around a center hub, connected by a ring track.
 
 import type { Color } from './engine'
 
@@ -35,7 +31,7 @@ function loc(k: number, n: number, lx: number, ly: number): [number, number] {
 
 export function makeHexBoard(n: number): HexBoardConfig {
   const L = 6
-  const cellPer = 2 * L + 1 // 13
+  const cellPer = 2 * L + 1
   const r0 = n === 6 ? 2.7 : 2.2
   const ids = COLORS_6.slice(0, n)
   const ring: [number, number][] = []
@@ -68,7 +64,22 @@ export function makeHexBoard(n: number): HexBoardConfig {
     return [bx + (i % 2 ? 0.8 : -0.8), by + (i > 1 ? 0.8 : -0.8)]
   }
 
-  return { n, R: n === 6 ? 9.5 : 8.7, ringLen, cellPerPlayer: cellPer, ids, ring, home, off, safe, ang, bc, slot, FIN, OUT }
+  return {
+    n,
+    R: n === 6 ? 9.5 : 8.7,
+    ringLen,
+    cellPerPlayer: cellPer,
+    ids,
+    ring,
+    home,
+    off,
+    safe,
+    ang,
+    bc,
+    slot,
+    FIN,
+    OUT,
+  }
 }
 
 const ENGINE_START: Record<Color, number> = {
@@ -94,7 +105,8 @@ export function hexTokenPos(
     const colorOff = config.off[color]!
     const engineStart = ENGINE_START[color]!
     const engineProgress = ((enginePos - engineStart + 52) % 52) / 52
-    const ringIdx = Math.round(colorOff + engineProgress * config.ringLen) % config.ringLen
+    const ringIdx =
+      Math.round(colorOff + engineProgress * config.ringLen) % config.ringLen
     const [x, y] = config.ring[ringIdx]!
     return { x, y, scale: 1 }
   }
