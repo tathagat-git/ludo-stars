@@ -161,44 +161,29 @@ function CellView({ row, col }: { row: number; col: number }) {
   switch (info.kind) {
     case 'center':
       return (
-        <div className="relative aspect-square overflow-hidden border border-slate-800 bg-white dark:border-slate-200/40 dark:bg-slate-900">
-          {/* 4 colored triangles meeting at center. Using slightly oversized
-              polygons (extending 0.5% past center) to avoid sub-pixel gaps
-              between triangles that cause the "glitchy" look. */}
+        <div className="relative aspect-square overflow-hidden border border-slate-800 dark:border-slate-200/40">
+          {/* 4 colored quadrants via a single conic-gradient. Each quadrant
+              faces the color whose home column approaches it:
+              - top-left  = green  (green home column comes from the left)
+              - top-right = yellow (yellow home column comes from the top)
+              - bottom-right = blue (blue home column comes from the right)
+              - bottom-left  = red   (red home column comes from the bottom)
+              A conic-gradient starting at 135deg (bottom-left) going clockwise
+              gives: red (BL) → green (TL) → yellow (TR) → blue (BR). */}
           <div
             className="absolute inset-0"
             style={{
-              clipPath: 'polygon(0 0, 100% 0, 50.5% 50.5%)',
-              background: 'var(--c-yellow)',
-            }}
-            aria-hidden
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              clipPath: 'polygon(0 0, 0 100%, 50.5% 50.5%)',
-              background: 'var(--c-green)',
-            }}
-            aria-hidden
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              clipPath: 'polygon(0 100%, 100% 100%, 49.5% 49.5%)',
-              background: 'var(--c-red)',
-            }}
-            aria-hidden
-          />
-          <div
-            className="absolute inset-0"
-            style={{
-              clipPath: 'polygon(100% 0, 100% 100%, 49.5% 49.5%)',
-              background: 'var(--c-blue)',
+              background:
+                'conic-gradient(from 135deg, var(--c-red) 0deg 90deg, var(--c-green) 90deg 180deg, var(--c-yellow) 180deg 270deg, var(--c-blue) 270deg 360deg)',
             }}
             aria-hidden
           />
           <div className="absolute inset-0 grid place-items-center" aria-hidden>
-            <Crown className="size-3/5 text-amber-500 drop-shadow" strokeWidth={2.5} />
+            <Crown
+              className="anim-crown-glow size-3/5 text-amber-500"
+              strokeWidth={2.5}
+              aria-hidden
+            />
           </div>
         </div>
       )
@@ -227,7 +212,7 @@ function CellView({ row, col }: { row: number; col: number }) {
         return (
           <div className="relative aspect-square border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
             <Star
-              className="absolute inset-0 m-auto size-3/5 text-emerald-500/70"
+              className="anim-shimmer absolute inset-0 m-auto size-3/5 text-emerald-500/80"
               strokeWidth={2}
               aria-label="safe square"
             />
@@ -319,6 +304,8 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
   const canMove = isMyTurn && state.phase === 'move'
   const showTurnGlow = isMyTurn && (state.phase === 'move' || state.phase === 'roll')
 
+  // Click handler for a destination cell. If only one move targets it,
+  // execute it. If two (forward + backward to the same cell), prefer forward.
   const handleCellClick = (moves: LegalMove[]) => {
     if (!canMove || moves.length === 0) return
     const fwd = moves.find((m) => m.direction === 'forward')
@@ -330,6 +317,7 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
     <div
       className={cn(
         'relative mx-auto aspect-square w-full max-w-[min(95vw,600px)] rounded-xl border-2 border-slate-800 bg-white p-1 shadow-2xl select-none transition-shadow dark:border-slate-200/30 dark:bg-slate-900',
+        // Subtle steady glow on the player's turn — no aggressive pulsing.
         showTurnGlow && 'shadow-emerald-400/30 ring-2 ring-emerald-400/40',
       )}
       role="grid"
@@ -363,7 +351,7 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
                 <button
                   type="button"
                   onClick={() => handleCellClick(moves)}
-                  className="absolute inset-0 z-20 flex items-center justify-center rounded-sm border-2 border-emerald-400 bg-emerald-400/20 transition-colors hover:bg-emerald-400/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                  className="anim-legal-pulse focus-ring-emerald absolute inset-0 z-20 flex items-center justify-center rounded-sm border-2 border-emerald-400 transition-transform duration-150 hover:scale-105"
                   aria-label={`Move token ${moves[0]!.direction} here`}
                 >
                   <DirectionArrow moves={moves} />
@@ -408,11 +396,17 @@ export function LudoBoard({ state, mySeat, onTokenClick, highlightLegal }: LudoB
                 tokenId={token.index}
                 isLegal={isMovable}
                 isCurrent={isCurrentSeatToken}
+                // No onClick — tokens are not clickable. Destination cells are.
               />
             </div>
           </motion.div>
         )
       })}
+
+      {/* Capture flash overlay — a brief red ring at the capture cell.
+          Triggered when the last game event is a 'capture'. */}
+      {state.lastEvent?.type === 'move' &&
+        state.lastEvent.captures.length > 0 && <CaptureFlash state={state} />}
     </div>
   )
 }
@@ -437,6 +431,31 @@ function DirectionArrow({ moves }: { moves: LegalMove[] }) {
     return <ArrowDown className="size-1/2 text-amber-700" strokeWidth={3} aria-hidden />
   }
   return null
+}
+
+// ─── Capture flash (brief red ring when a token is captured) ─────────────────
+
+function CaptureFlash({ state }: { state: GameState }) {
+  const ev = state.lastEvent
+  if (!ev || ev.type !== 'move' || ev.captures.length === 0) return null
+  // Show the flash at the destination cell (where the capturing token landed).
+  const cell = posToCell(ev.toPos, ev.seat)
+  if (!cell) return null
+  const top = ((cell.row + 0.5) / GRID) * 100
+  const left = ((cell.col + 0.5) / GRID) * 100
+  return (
+    <div
+      className="anim-capture-flash pointer-events-none absolute z-30 rounded-full border-4 border-red-500 bg-red-500/40"
+      style={{
+        top: `${top}%`,
+        left: `${left}%`,
+        width: `${(1 / GRID) * 80}%`,
+        height: `${(1 / GRID) * 80}%`,
+        transform: 'translate(-50%, -50%)',
+      }}
+      aria-hidden
+    />
+  )
 }
 
 export default LudoBoard
