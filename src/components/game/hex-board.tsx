@@ -6,6 +6,9 @@ import { cn } from '@/lib/utils'
 import { makeHexBoard, hexTokenPos } from '@/lib/ludo/hex-board'
 import { COLORS, type Color, type GameState, type LegalMove } from '@/lib/ludo/engine'
 import { Token as TokenComponent } from './token'
+// Re-export the unified Board so any code still importing from hex-board.tsx
+// gets the new unified component. The actual implementation lives in board.tsx.
+export { Board as HexBoard, default } from './board'
 
 interface HexBoardProps {
   state: GameState

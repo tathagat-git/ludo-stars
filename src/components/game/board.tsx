@@ -43,10 +43,10 @@ const STARTS_4: Record<number, Color> = {
 }
 const SAFE_4 = new Set([0, 13, 26, 39, 8, 21, 34, 47])
 const BASE_POS_4: Record<Color, [number, number]> = {
-  red: [0, 9],
-  green: [0, 0],
-  yellow: [9, 0],
-  blue: [9, 9],
+  red: [9, 0],
+  green: [9, 9],
+  yellow: [0, 9],
+  blue: [0, 0],
 }
 const SLOT_4 = [
   [1.5, 1.5],
@@ -84,7 +84,7 @@ function pos4(
       return { x: cell.col - 7, y: cell.row - 7, s: 1, k: 'h' + color + enginePos }
     }
   }
-  const ang = { red: 180, green: 270, yellow: 0, blue: 90, purple: 0, orange: 0 }[color]!
+  const ang = { red: 270, green: 0, yellow: 90, blue: 180 }[color]!
   return {
     x: Math.sin(rad(ang)) * 0.8 + (idx % 2 ? 0.12 : -0.12),
     y: -Math.cos(rad(ang)) * 0.8 + (idx > 1 ? 0.12 : -0.12),
@@ -237,23 +237,23 @@ export function Board({ state, mySeat, onTokenClick, highlightLegal }: BoardProp
           })}
           <div className="lr-ctr">
             <i
-              style={{ background: C.green.c, clipPath: 'polygon(0 0,50% 50%,0 100%)' }}
+              style={{ background: C.red.c, clipPath: 'polygon(0 0,50% 50%,0 100%)' }}
             />
             <i
               style={{
-                background: C.yellow.c,
+                background: C.green.c,
                 clipPath: 'polygon(0 0,100% 0,50% 50%)',
               }}
             />
             <i
               style={{
-                background: C.blue.c,
+                background: C.yellow.c,
                 clipPath: 'polygon(100% 0,100% 100%,50% 50%)',
               }}
             />
             <i
               style={{
-                background: C.red.c,
+                background: C.blue.c,
                 clipPath: 'polygon(0 100%,50% 50%,100% 100%)',
               }}
             />
